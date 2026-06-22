@@ -33,31 +33,33 @@
 ///
 /// ## Mechanism: deficit / burst weighted round-robin
 ///
-/// The weight is realised as a *quantum*: when an input wins arbitration it is granted up to
-/// `w_i` consecutive transfers (a burst) before the round-robin pointer advances to the next
-/// contender. Over a full rotation that visits every contender once, input `i` therefore emits
-/// `w_i` out of `sum_j(w_j)` transfers, giving the bandwidth split above.
+/// The weight is realised as a *burst*: when an input wins arbitration it is granted up to
+/// `w_i` consecutive flits (one flit = one valid/ready transfer) before the round-robin pointer
+/// advances to the next contender. Over a full rotation that visits every contender once, input
+/// `i` therefore emits `w_i` out of `sum_j(w_j)` flits, giving the bandwidth split above.
 ///
 /// Design decisions (and their trade-offs):
 /// * **Reuse `cc_rr_arb_tree` for winner selection.** The inner arbiter (with `FairArb` and
-///   `LockIn`) decides *who* wins and *holds that decision* for the whole burst; this cell only
-///   adds the quantum counter on top. The inner `gnt_i` is pulsed exactly once per burst (on the
-///   last accepted beat) so the inner round-robin pointer moves once per quantum, not once per
-///   beat. We feed the inner arbiter a *snapshot* of the contender set (`req_lock_q`) that is held
+///   `LockIn`) decides *who* wins and *holds that decision* for the whole burst; the wrra cell only
+///   adds the burst counter on top. The inner `gnt_i` is pulsed exactly once per burst (on the
+///   last accepted flit) so the inner round-robin pointer moves once per burst, not once per
+///   flit. We feed the inner arbiter a *snapshot* of the contender set (`req_lock_q`) that is held
 ///   stable for the whole burst, which keeps the `LockIn` decision stable even if a non-winning
 ///   input deasserts, and avoids tripping the inner arbiter's `LockIn` assumptions.
 /// * **Burst vs. interleaved.** A burst arbiter is small and simple but makes the output bursty:
 ///   a low-weight input may wait through a full high-weight burst, so its *latency/jitter* is
 ///   worse than with a (more expensive) interleaved/WFQ-style scheme. The bandwidth ratio is
 ///   identical either way, so for bandwidth shaping under contention the burst scheme is chosen.
-/// * **Quantum is a *maximum*, not a guarantee of work.** A burst only advances on accepted beats
-///   (`req_o & gnt_i`). If the locked winner bubbles (deasserts valid mid-burst) the output waits
-///   for it rather than serving another ready input, i.e. the cell is *not* work-conserving inside
-///   a burst. This is intentional: it keeps the bandwidth ratio exact in the saturated regime that
-///   the WRRA targets. Under non-saturation the ratio degrades gracefully towards the offered load.
-/// * **Weight of 0 is clamped to 1.** A zero quantum would stall/underflow the counter; instead a
-///   weight of 0 still makes forward progress with a single grant. Weights are therefore 1-based:
-///   `w_i` grants for `w_i >= 1`, and `1` grant for `w_i == 0`.
+/// * **The burst length is a *maximum*, not a guarantee of work.** A burst only advances on
+///   accepted flits (`req_o & gnt_i`). If the locked winner bubbles (deasserts valid mid-burst) the
+///   output waits for it rather than serving another ready input, i.e. the cell is *not*
+///   work-conserving inside a burst. This is intentional: it keeps the bandwidth ratio exact in the
+///   saturated regime that the WRRA targets. Under non-saturation the ratio degrades gracefully
+///   towards the offered load.
+/// * **Weight of 0 means "no service".** An input whose weight is 0 is excluded from arbitration
+///   entirely: it is skipped and never granted, even while it is requesting (it gets zero
+///   bandwidth, as the weight says). This also keeps the burst counter from ever loading 0. If
+///   *every* requesting input has weight 0, the output simply stays idle.
 module cc_wrr_arbiter #(
   /// Number of request ports to arbitrate.
   parameter int unsigned NumIn     = 4,
@@ -65,15 +67,14 @@ module cc_wrr_arbiter #(
   parameter int unsigned DataWidth = 32,
   /// Data type of the payload, can be overwritten with a custom type.
   parameter type         data_t    = logic [DataWidth-1:0],
-  /// Width of the per-input weight signal. A weight may range `[0, 2**WtWidth-1]`; the effective
-  /// quantum (number of consecutive grants) is `max(weight, 1)`.
+  /// Width of the per-input weight signal. A weight may range `[0, 2**WtWidth-1]`. A weight of 0
+  /// excludes the input from arbitration (no service); otherwise the burst length is `weight` flits.
   parameter int unsigned WtWidth   = 4,
-  /// Dependent parameter, do **not** overwrite. Width of the arbitrated index.
+  /// Width of the arbitrated index.
   localparam int unsigned IdxWidth = cc_pkg::idx_width(NumIn),
-  /// Dependent parameter, do **not** overwrite. Type of the arbitrated index.
+  /// Type of the arbitrated index.
   localparam type         idx_t    = logic [IdxWidth-1:0]
 ) (
-  /// Clock, positive edge triggered.
   input  logic                            clk_i,
   /// Asynchronous reset, active low.
   input  logic                            rst_ni,
@@ -85,7 +86,8 @@ module cc_wrr_arbiter #(
   output logic    [NumIn-1:0]             gnt_o,
   /// Input data for each requester.
   input  data_t   [NumIn-1:0]             data_i,
-  /// Per-input weight. The winner is granted up to `max(weights_i[winner], 1)` consecutive beats.
+  /// Per-input weight. The winner is granted `weights_i[winner]` consecutive flits; a weight of 0
+  /// excludes that input from arbitration.
   input  logic    [NumIn-1:0][WtWidth-1:0] weights_i,
   /// Output request / valid.
   output logic                            req_o,
@@ -105,25 +107,33 @@ module cc_wrr_arbiter #(
   // winner is and holds that choice stable for the duration of the burst.
   idx_t                 winner_idx;
   logic                 any_req;
+  logic [NumIn-1:0]     eff_req;                // requesting AND non-zero weight -> may contend
 
   logic [NumIn-1:0]     req_lock_q, req_lock_d; // snapshot of the contenders for the current round
-  logic                 done_q,     done_d;     // registered "previous beat completed a quantum"
-  logic [WtWidth-1:0]   cnt_q,      cnt_d;      // remaining grants in the current quantum
+  logic                 done_q,     done_d;     // registered "previous flit completed a burst"
+  logic [WtWidth-1:0]   cnt_q,      cnt_d;      // remaining flits in the current burst
   logic [WtWidth-1:0]   cnt_eff;                // effective remaining count this cycle
-  logic [WtWidth-1:0]   sel_weight;             // clamped weight of the current winner
+  logic [WtWidth-1:0]   sel_weight;             // weight of the current winner (always >= 1)
 
-  logic                 load_round;             // (re)load snapshot + weight for a fresh quantum
-  logic                 beat;                   // one accepted transfer from the current winner
-  logic                 last_beat;              // this beat is the last of the current quantum
-  logic                 quantum_done;           // last beat accepted -> advance the rr pointer
+  logic                 load_round;             // (re)load snapshot + weight for a fresh burst
+  logic                 flit_transfered;             // one accepted transfer (flit) from the current winner
+  logic                 last_flit;              // this flit is the last of the current burst
+  logic                 burst_done;             // last flit accepted -> advance the rr pointer
 
-  assign any_req = |req_i;
+  // A weight of 0 means "no bandwidth": that input is excluded from arbitration entirely (skipped,
+  // never granted) instead of being served. Only requesting inputs with a non-zero weight contend,
+  // which also guarantees the burst counter never loads 0.
+  always_comb begin : proc_eff_req
+    for (int unsigned i = 0; i < NumIn; i++) eff_req[i] = req_i[i] & (weights_i[i] != '0);
+  end
 
-  // A fresh quantum is loaded when the arbiter is idle (no snapshot held) or the previous beat
-  // finished a quantum. On both of these cycles the inner arbiter's LockIn is disengaged, so it is
+  assign any_req = |eff_req;
+
+  // A fresh burst is loaded when the arbiter is idle (no snapshot held) or the previous flit
+  // finished a burst. On both of these cycles the inner arbiter's LockIn is disengaged, so it is
   // safe to present it a fresh (possibly changed) request vector here.
-  assign load_round = (~|req_lock_q) | done_q;
-  assign req_lock_d = load_round ? req_i : req_lock_q;
+  assign load_round = (~|req_lock_q) | done_q; // no request pending OR this round complete
+  assign req_lock_d = load_round ? eff_req : req_lock_q;
 
   cc_rr_arb_tree #(
     .NumIn     ( NumIn  ),
@@ -141,7 +151,7 @@ module cc_wrr_arbiter #(
     .gnt_o   ( /* unused */ ),
     .data_i  ( '0           ),
     .req_o   ( /* unused */ ),
-    .gnt_i   ( quantum_done ), // advance the pointer once per completed burst
+    .gnt_i   ( burst_done   ), // advance the pointer once per completed burst
     .data_o  ( /* unused */ ),
     .idx_o   ( winner_idx   )
   );
@@ -160,21 +170,21 @@ module cc_wrr_arbiter #(
   end
 
   // ---------------------------------------------------------------------------------------------
-  // Quantum counter.
+  // Burst counter.
   // ---------------------------------------------------------------------------------------------
-  assign beat       = req_o & gnt_i;
+  assign flit_transfered = req_o & gnt_i;
 
-  // Clamp a zero weight to one so the counter always makes forward progress (see header).
-  assign sel_weight = (weights_i[idx_o] == '0) ? WtWidth'(1) : weights_i[idx_o];
+  // idx_o is always an eligible (non-zero-weight) winner, so this weight is >= 1.
+  assign sel_weight = weights_i[idx_o];
 
   // On a load cycle the count starts at the winner's weight; otherwise it is the running value.
-  assign cnt_eff      = load_round ? sel_weight : cnt_q;
-  assign last_beat    = (cnt_eff == WtWidth'(1));
-  assign quantum_done = beat & last_beat;
+  assign cnt_eff    = load_round ? sel_weight : cnt_q;
+  assign last_flit  = (cnt_eff == WtWidth'(1));
+  assign burst_done = flit_transfered & last_flit;
 
-  // Decrement only on an accepted beat; hold otherwise (covers downstream stalls and bubbles).
-  assign cnt_d  = beat ? (cnt_eff - WtWidth'(1)) : cnt_eff;
-  assign done_d = quantum_done;
+  // Decrement only on an accepted flit; hold otherwise (covers downstream stalls and bubbles).
+  assign cnt_d  = flit_transfered ? (cnt_eff - WtWidth'(1)) : cnt_eff;
+  assign done_d = burst_done;
 
   `FFARNC(req_lock_q, req_lock_d, flush_i, '0,   clk_i, rst_ni)
   `FFARNC(done_q,     done_d,     flush_i, 1'b0, clk_i, rst_ni)
@@ -191,6 +201,8 @@ module cc_wrr_arbiter #(
           "Grant must be one-hot or zero.")
   `ASSERT(gnt_implies_req, |gnt_o |-> gnt_i, clk_i, !rst_ni || flush_i,
           "A grant out implies the downstream granted in.")
+  `ASSERT(no_zero_weight_grant, |gnt_o |-> (weights_i[idx_o] != '0), clk_i, !rst_ni || flush_i,
+          "A zero-weight input must never be granted.")
   `endif
 
 endmodule

@@ -26,8 +26,11 @@ module cc_wrr_arbiter_tb #(
   parameter int unsigned NumInp   = 32'd4,
   /// Width of the weight signal.
   parameter int unsigned WtWidth  = 32'd4,
-  /// Number of accepted beats to measure before checking.
-  parameter int unsigned NumBeats = 32'd200000
+  /// Number of accepted flits to measure before checking.
+  parameter int unsigned NumFlits = 32'd200000,
+  /// Set to an input index to force that input's weight to 0 and verify it is excluded from
+  /// arbitration (never granted). The default `NumInp` means "no input is zeroed".
+  parameter int unsigned ZeroIdx  = NumInp
 );
 
   localparam time CyclTime = 10ns;
@@ -51,9 +54,9 @@ module cc_wrr_arbiter_tb #(
   data_t                           data_oup;
   idx_t                            idx_oup;
 
-  // Constant per-input weight (i+1) and a constant data tag (= input index).
+  // Constant per-input weight (i+1, or 0 for the excluded input) and a constant data tag.
   for (genvar i = 0; i < NumInp; i++) begin : gen_inp_const
-    assign weights[i]  = WtWidth'(i + 1);
+    assign weights[i]  = (i == ZeroIdx) ? WtWidth'(0) : WtWidth'(i + 1);
     assign data_inp[i] = data_t'(i);
   end
 
@@ -103,18 +106,18 @@ module cc_wrr_arbiter_tb #(
   initial begin : proc_check
     automatic longint unsigned cnt   [NumInp];
     automatic longint unsigned total;
-    automatic int     unsigned sum_w;
+    automatic int     unsigned sum_w, wv;
     automatic real             share, exp_share, err;
 
     foreach (cnt[i]) cnt[i] = 0;
     total = 0;
     sum_w = 0;
-    for (int unsigned i = 0; i < NumInp; i++) sum_w += (i + 1);
+    for (int unsigned i = 0; i < NumInp; i++) sum_w += (i == ZeroIdx) ? 0 : (i + 1);
 
     @(posedge rst_n);
     repeat (100) @(posedge clk); // skip the start-up transient
 
-    while (total < NumBeats) begin
+    while (total < NumFlits) begin
       @(posedge clk);
       #TestTime;
       for (int unsigned i = 0; i < NumInp; i++) begin
@@ -130,15 +133,22 @@ module cc_wrr_arbiter_tb #(
       end
     end
 
-    $display("=== cc_wrr_arbiter flat WRR (NumInp=%0d, weight[i]=i+1, sum=%0d) ===", NumInp, sum_w);
+    $display("=== cc_wrr_arbiter flat WRR (NumInp=%0d, sum=%0d, ZeroIdx=%0d) ===", NumInp, sum_w, ZeroIdx);
     for (int unsigned i = 0; i < NumInp; i++) begin
+      wv        = (i == ZeroIdx) ? 0 : (i + 1);
       share     = real'(cnt[i]) / real'(total);
-      exp_share = real'(i + 1)  / real'(sum_w);
+      exp_share = real'(wv)     / real'(sum_w);
       err       = share - exp_share;
       $display("Input %0d: weight=%0d  measured=%0f  ideal=%0f  diff=%0f",
-               i, i + 1, share, exp_share, err);
-      assert (err < ErrThresh && err > -ErrThresh)
-        else $error("Input %0d share off: measured=%0f ideal=%0f", i, share, exp_share);
+               i, wv, share, exp_share, err);
+      if (wv == 0) begin
+        // A weight-0 input must be excluded entirely: it may never be granted.
+        assert (cnt[i] == 0)
+          else $error("Zero-weight input %0d was granted %0d times (should be 0).", i, cnt[i]);
+      end else begin
+        assert (err < ErrThresh && err > -ErrThresh)
+          else $error("Input %0d share off: measured=%0f ideal=%0f", i, share, exp_share);
+      end
     end
     $display("=== flat WRR test done ===");
     $stop();

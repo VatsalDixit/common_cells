@@ -6,8 +6,8 @@ add wave -noupdate -group {tb} {/cc_wrr_arbiter_tb/*}
 
 # DUT internals: the weighted round-robin mechanism.
 #  - winner_idx / req_lock_q : who is being served and the locked contender snapshot
-#  - sel_weight / cnt_eff / cnt_q : the quantum counter (remaining beats in the burst)
-#  - load_round / beat / last_beat / quantum_done : burst boundary control
+#  - sel_weight / cnt_eff / cnt_q : the burst counter (remaining flits in the burst)
+#  - load_round / flit / last_flit / burst_done : burst boundary control
 add wave -noupdate -group {dut} {/cc_wrr_arbiter_tb/i_dut/*}
 
 # Inner fair round-robin tree used purely as a winner picker.

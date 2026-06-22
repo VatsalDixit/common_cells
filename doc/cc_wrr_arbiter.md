@@ -58,19 +58,23 @@ bandwidth_i = w_i / Σ_j w_j      (j over the currently-contending inputs)
 
 ### Mechanism: deficit / burst weighted round robin
 
-The weight is realised as a **quantum**. When an input wins, it is granted up to `wᵢ`
-consecutive accepted transfers (a *burst*) before the round-robin pointer advances to the
-next contender. Over one full rotation that visits every contender once, input `i` emits
-`wᵢ` of `Σⱼ wⱼ` transfers — giving the bandwidth split above.
+The weight is realised as a **burst**. When an input wins, it is granted up to `wᵢ`
+consecutive flits (one flit = one accepted valid/ready transfer) before the round-robin
+pointer advances to the next contender. Over one full rotation that visits every contender
+once, input `i` emits `wᵢ` of `Σⱼ wⱼ` flits — giving the bandwidth split above.
+
+(Note: a *burst* here is a bandwidth allowance — `wᵢ` consecutive flits from one input — and
+is deliberately **not** a NoC *packet*. The flits in a burst are independent and may span
+several logical packets; "packet" is reserved for the atomic wormhole-routed unit.)
 
 The cell is a thin wrapper around the existing `cc_rr_arb_tree`:
 
 * The inner `cc_rr_arb_tree` (with `FairArb` + `LockIn`) is used **only as a winner
   picker** — it produces the winning index and holds it stable. Its `gnt_i` is pulsed
-  exactly **once per burst** (on the last accepted beat), so its round-robin pointer
-  advances once per quantum rather than once per beat.
+  exactly **once per burst** (on the last accepted flit), so its round-robin pointer
+  advances once per burst rather than once per flit.
 * The data path and the per-input ready are muxed externally from the winning index.
-* A quantum counter (`cnt`) tracks the beats remaining in the current burst.
+* A burst counter (`cnt`) tracks the flits remaining in the current burst.
 
 ---
 
@@ -85,7 +89,7 @@ These are also documented inline in `src/cc_wrr_arbiter.sv`.
    under contention the burst scheme is the right trade.
 
 2. **Reuse `cc_rr_arb_tree` for selection.** Rather than re-implement fair rotation, the
-   cell layers the quantum counter on the proven tree. This keeps the new logic minimal
+   cell layers the burst counter on the proven tree. This keeps the new logic minimal
    and inherits the tree's fairness and timing properties.
 
 3. **Contender snapshot (`req_lock_q`).** The inner arbiter's `LockIn` carries a formal
@@ -94,25 +98,27 @@ These are also documented inline in `src/cc_wrr_arbiter.sv`.
    at the start of each burst and held until the burst completes. This keeps the inner
    arbiter within its usage contract even if a non-winning input bubbles mid-burst (which
    is harmless to the served traffic, but would otherwise trip the inner assertion). The
-   snapshot is only refreshed on quantum-boundary cycles, where the inner lock is
+   snapshot is only refreshed on burst-boundary cycles, where the inner lock is
    disengaged and refreshing is legal.
 
-4. **`cnt_eff` makes the weight live on the first beat.** A plain counter register lags by
-   one cycle, so on the first beat of a burst it would still hold the previous value. The
+4. **`cnt_eff` makes the weight live on the first flit.** A plain counter register lags by
+   one cycle, so on the first flit of a burst it would still hold the previous value. The
    cell uses `cnt_eff = load_round ? sel_weight : cnt_q`, which presents the freshly
-   selected weight on the very first beat. Without this, the first winner after every idle
+   selected weight on the very first flit. Without this, the first winner after every idle
    period would be truncated to a single grant (this was a bug in the original
    `floo_wrr_arbiter` prototype this cell is derived from).
 
 5. **Non-work-conserving within a burst (intentional).** A burst only advances on accepted
-   beats. If the locked winner bubbles, the output waits for it rather than serving another
+   flits. If the locked winner bubbles, the output waits for it rather than serving another
    ready input. This keeps the bandwidth ratio exact in the **saturated** regime the WRRA
    targets (the regime in which the topological-unfairness analysis is defined). Under
    non-saturation the ratio degrades gracefully towards the offered load.
 
-6. **Weight `0` clamped to `1`.** A zero quantum would stall/underflow the counter, so a
-   weight of `0` still makes forward progress with a single grant. Weights are therefore
-   1-based: `wᵢ` grants for `wᵢ ≥ 1`, one grant for `wᵢ = 0`.
+6. **Weight `0` means "no service".** A weight-0 input is excluded from arbitration entirely —
+   skipped and never granted, even while requesting (it gets zero bandwidth, as the weight says).
+   This is implemented by masking it out of the contention set (`eff_req = req_i & (weight != 0)`),
+   which also keeps the burst counter from ever loading `0`. If *every* requester has weight 0 the
+   output simply stays idle.
 
 ---
 

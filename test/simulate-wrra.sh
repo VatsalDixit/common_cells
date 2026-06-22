@@ -44,8 +44,21 @@ bender script vsim -t test > compile.tcl
 # Option A: flat N-input weighted throughput check (verifies w_i / sum(w_j) in isolation).
 call_vsim cc_wrr_arbiter_tb -GNumInp=4 -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
 
+# Weight-0 exclusion: input 1 has weight 0 and must never be granted.
+call_vsim cc_wrr_arbiter_tb -GNumInp=4 -GZeroIdx=1 -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
+
 # Option B: Dally topological-unfairness cascade.
 #  - Weighted=0 reproduces the unfair split (r0..r2=1/12, r3=1/4, r4=1/2).
 #  - Weighted=1 restores global fairness (1/5 each).
 call_vsim cc_wrr_arbiter_cascade_tb -GWeighted=0 -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
 call_vsim cc_wrr_arbiter_cascade_tb -GWeighted=1 -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
+
+# Combined QoS + weighted RR: priority tier on top, weighted bandwidth split within the tier.
+# (Set all weights equal for plain QoS + fair round-robin.)
+call_vsim cc_qos_wrr_arbiter_tb -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
+
+# Evaluation: RRA vs WRRA vs QoS+WRRA on identical traffic, swept over the number of competing
+# flows. Watch the urgent-flow latency: ~flat for QoS+WRRA, growing with NumInp for RRA/WRRA.
+for N in 4 8 16 32; do
+  call_vsim cc_arbiter_compare_tb -GNumInp=$N -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
+done
