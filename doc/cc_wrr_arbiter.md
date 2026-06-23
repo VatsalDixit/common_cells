@@ -191,13 +191,144 @@ be set unequal to *deliberately* favour selected requesters in proportion to the
 
 ---
 
-## 5. Files
+## 5. Extension: QoS priority + weighted RR (`cc_qos_wrr_arbiter`)
+
+The WRRA controls **bandwidth** (how much of the link each input gets). It cannot control
+**latency** — which request should be served *first*. These are two orthogonal axes:
+
+| knob | controls | answers |
+| ---- | -------- | ------- |
+| `weights_i` (WRRA) | bandwidth (rate) | "how *much* of the link does this input get?" |
+| `qos_i` (QoS) | priority (latency) | "when several wait, who goes *first*?" |
+
+`cc_qos_wrr_arbiter` combines both. A per-input `qos_i` (like AXI `AxQOS`) selects the
+served **tier**; within that tier, bandwidth is split by `weights_i` via `cc_wrr_arbiter`:
+
+```
+effective_qos[i] = qos_i[i] + age[i]
+max_eff          = max over contenders of effective_qos[i]
+eligible[i]      = req_i[i] && (effective_qos[i] == max_eff)   // the winning QoS tier
+winner           = weighted round robin (by weights_i) among `eligible`
+```
+
+* **Anti-starvation via aging.** Strict priority would starve low-QoS traffic forever. To
+  prevent it, a waiting request's *effective* QoS **ages upward**: `age[i]` climbs by 1 every
+  `AgingInterval` **grants** (forward-progress cycles, not clock cycles — so a stall does not
+  inflate ages) while the input is requesting but stuck below the winning tier. So any
+  requester is guaranteed service within a bounded number of grants.
+* **Tier across, weights within.** Across tiers QoS dominates (high QoS preempts); within a
+  tier weights split the bandwidth. Weight 0 excludes an input from arbitration entirely.
+
+---
+
+## 6. Evaluation of QoS + WRR
+
+All testbenches pass with `Errors: 0`.
+
+### 6.1 Stable two-tier check — `cc_qos_wrr_arbiter_tb`
+
+Four saturated inputs: high tier {input 0 (QoS 2, w 1), input 1 (QoS 2, w 3)}, low tier
+{input 2, 3 (QoS 0, w 1)}, `AgingInterval = 64`.
+
+| Input | QoS | weight | share | maxWait |
+| ----- | --- | ------ | ----- | ------- |
+| 0 | 2 | 1 | 0.246 | 6 cyc |
+| 1 | 2 | 3 | 0.738 | 4 cyc |
+| 2 | 0 | 1 | 0.0078 | 130 cyc |
+| 3 | 0 | 1 | 0.0078 | 130 cyc |
+
+* **Within-tier weighting is exact**: `cnt[1]/cnt[0] = 3.0000` (the 3:1 weights).
+* **QoS priority**: the high tier takes 98.4 % of the link.
+* **No starvation**: the low tier still gets bounded service (`maxWait = 130 ≈ qos_gap ×
+  AgingInterval`) — aging works.
+
+### 6.2 RRA vs WRRA vs QoS+WRRA — `cc_arbiter_compare_tb` (headline result)
+
+Identical traffic through all three arbiters: `N−1` saturated bulk flows (QoS 0, weight 4)
+plus one sporadic *urgent* flow (QoS 8, weight 1). Swept over the number of competing flows.
+**Urgent-flow request→grant latency (cycles):**
+
+| NumInp | RRA mean / max | WRRA mean / max | QoS+WRRA mean / max |
+| ------ | -------------- | --------------- | ------------------- |
+| 4  | 1 / 1   | 4 / 7     | **0 / 1** |
+| 8  | 1 / 4   | 8 / 11    | **0 / 1** |
+| 16 | 10 / 10 | 40 / 40   | **0 / 1** |
+| 32 | 11 / 23 | 104 / 104 | **0 / 1** |
+
+Reading the result:
+* **QoS+WRRA latency is flat (~0, max 1) regardless of congestion** — the urgent flow jumps
+  the queue at every contention level.
+* **RRA latency grows with N** — fair round robin makes the urgent flow wait its turn among
+  `N` peers, so latency scales with the number of competitors.
+* **WRRA is *worst*** — giving the urgent flow a low weight makes it wait behind every bulk
+  *burst* (`≈ (N−1)·weight`), reaching 104 cycles at N=32. This is the key insight:
+  **weights alone cannot deliver latency; trying to use them for it actively hurts.** Only
+  the QoS axis decouples latency from bandwidth.
+* At **low congestion (N = 4, 8) plain RR already matches QoS+WRRA** — there is nothing to
+  fix when few flows compete. The benefit is a property of *congestion*, which is exactly why
+  the N-sweep (not a single point) is the right way to show it.
+
+### 6.3 QoS through the cascade — `cc_qos_wrr_cascade_tb`
+
+The mixed-radix cascade from §4.2 rebuilt from `cc_qos_wrr_arbiter`, with **per-flit QoS**
+(each flit carries its QoS in the header, read at every hop). The farthest source `r0`
+injects sporadic flits; we measure their end-to-end latency:
+
+| Config | r0 end-to-end latency (mean / max) |
+| ------ | ---------------------------------- |
+| `UrgentQos = 8` (prioritised) | **0.27 / 1 cyc** |
+| `UrgentQos = 0` (uniform baseline) | 4.0 / 4 cyc |
+
+QoS shortcuts the latency-critical flow through every hop — even though `r0` is the
+topologically disadvantaged source — while weights keep bulk bandwidth fair.
+
+### 6.4 Observed limitation: intra-tier fairness under *periodic* preemption
+
+In §6.2's throughput (not latency) the bulk flows — though identical — do **not** get equal
+shares at some `N` (e.g. N=16: a few get ~0.17, the rest ~0.009; N=4/32 are ~uniform).
+
+Cause: the sporadic urgent flow preempts on a fixed period and, each time it is served, the
+round-robin pointer is rewound to roughly the same place. Only the ~`gap/weight` bulk inputs
+the pointer reaches before the next preemption get served; aging only sprinkles a few grants
+on the rest. Whether this *freezes* on the same victims (unfair) or *drifts* across them
+(uniform) depends on whether the preemption period aliases with the rotation length — the
+same effect as a strobe light appearing to freeze or slowly rotate a spinning wheel. It is
+therefore an **artifact of perfectly periodic stimulus**; jittering the inter-arrival gap (as
+real traffic does) breaks the resonance and evens the shares out. It does not affect the
+latency result, the within-tier weighting (§6.1), or correctness (no starvation).
+
+---
+
+## 7. Engineering issues found and fixed
+
+The cascade/comparison testbenches exercised regimes the unit tests did not, surfacing three
+bugs — each fixed and re-verified:
+
+1. **First-flit burst truncation** (in the original `floo_wrr_arbiter` prototype). The burst
+   counter lagged a cycle, so the first winner after every idle period got only one grant.
+   Fixed with `cnt_eff` making the weight live on the first flit (§3.4).
+2. **Mid-burst deadlock under QoS masking.** When the QoS wrapper demoted the current burst
+   winner out of `eligible` mid-burst, the inner arbiter stayed locked on a now-ineligible
+   winner forever — starving the high-QoS flow. Fixed by abandoning the burst when the locked
+   winner stops requesting (`winner_gone`); under saturation it never triggers, so weighted
+   behaviour is unchanged.
+3. **Spurious grant on a masked winner.** `gnt_o` was asserted from `gnt_i` alone, so a
+   winner masked out mid-cycle received a grant for a flit that never left (a dropped flit in
+   real use, skewed throughput counts here). Fixed by gating the grant on the actual transfer
+   (`gnt_o[winner] = req_o & gnt_i`).
+
+---
+
+## 8. Files
 
 | File                                       | Purpose                                        |
 | ------------------------------------------ | ---------------------------------------------- |
-| `src/cc_wrr_arbiter.sv`                    | the weighted round-robin arbiter               |
-| `test/cc_wrr_arbiter_tb.sv`                | flat `wᵢ/Σwⱼ` throughput unit test             |
+| `src/cc_wrr_arbiter.sv`                    | weighted round-robin arbiter (bandwidth)       |
+| `src/cc_qos_wrr_arbiter.sv`                | QoS priority + aging + weighted RR             |
+| `test/cc_wrr_arbiter_tb.sv`                | flat `wᵢ/Σwⱼ` throughput + weight-0 unit test  |
 | `test/cc_wrr_arbiter_cascade_tb.sv`        | mixed-radix topological-unfairness cascade     |
-| `test/simulate-wrra.sh`                    | runs all three simulations                     |
-| `test/waves/cc_wrr_arbiter_tb.wave.do`     | GUI waveform setup (flat TB)                   |
-| `test/waves/cc_wrr_arbiter_cascade_tb.wave.do` | GUI waveform setup (cascade TB)            |
+| `test/cc_qos_wrr_arbiter_tb.sv`            | two-tier QoS+WRR (weighting + anti-starvation) |
+| `test/cc_qos_wrr_cascade_tb.sv`            | per-flit-QoS cascade end-to-end latency        |
+| `test/cc_arbiter_compare_tb.sv`            | RRA vs WRRA vs QoS+WRRA latency/throughput sweep |
+| `test/simulate-wrra.sh`                    | runs the simulations                           |
+| `test/waves/*.wave.do`                     | GUI waveform setups                            |
