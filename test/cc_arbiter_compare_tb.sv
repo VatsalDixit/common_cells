@@ -186,9 +186,9 @@ module cc_arbiter_compare_tb #(
     $display(" Urgent flow (input %0d) request->grant latency [cycles]", U);
     $display("              RRA        WRRA    QoS+WRRA");
     $display("  mean   %8.2f    %8.2f    %8.2f",
-             real'(total_lat[0]) / real'(n_txn[0]),
-             real'(total_lat[1]) / real'(n_txn[1]),
-             real'(total_lat[2]) / real'(n_txn[2]));
+             (n_txn[0] > 0) ? real'(total_lat[0]) / real'(n_txn[0]) : 0.0,
+             (n_txn[1] > 0) ? real'(total_lat[1]) / real'(n_txn[1]) : 0.0,
+             (n_txn[2] > 0) ? real'(total_lat[2]) / real'(n_txn[2]) : 0.0);
     $display("  max    %8d    %8d    %8d", max_lat[0], max_lat[1], max_lat[2]);
     $display("  txns   %8d    %8d    %8d", n_txn[0], n_txn[1], n_txn[2]);
     $display("============================================================================");

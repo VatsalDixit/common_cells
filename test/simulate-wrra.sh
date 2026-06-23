@@ -57,6 +57,11 @@ call_vsim cc_wrr_arbiter_cascade_tb -GWeighted=1 -coverage -voptargs="$VOPT_ARGS
 # (Set all weights equal for plain QoS + fair round-robin.)
 call_vsim cc_qos_wrr_arbiter_tb -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
 
+# QoS through a multi-hop cascade: end-to-end latency of the farthest flow (r0), with QoS
+# (UrgentQos=8) vs the uniform-QoS baseline (UrgentQos=0). QoS should cut r0's latency sharply.
+call_vsim cc_qos_wrr_cascade_tb -GUrgentQos=8 -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
+call_vsim cc_qos_wrr_cascade_tb -GUrgentQos=0 -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
+
 # Evaluation: RRA vs WRRA vs QoS+WRRA on identical traffic, swept over the number of competing
 # flows. Watch the urgent-flow latency: ~flat for QoS+WRRA, growing with NumInp for RRA/WRRA.
 for N in 4 8 16 32; do

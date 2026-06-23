@@ -149,6 +149,7 @@ sources:
       - test/cc_wrr_arbiter_tb.sv
       - test/cc_wrr_arbiter_cascade_tb.sv
       - test/cc_qos_wrr_arbiter_tb.sv
+      - test/cc_qos_wrr_cascade_tb.sv
       - test/cc_arbiter_compare_tb.sv
 
 

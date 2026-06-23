@@ -50,12 +50,14 @@
 ///   a low-weight input may wait through a full high-weight burst, so its *latency/jitter* is
 ///   worse than with a (more expensive) interleaved/WFQ-style scheme. The bandwidth ratio is
 ///   identical either way, so for bandwidth shaping under contention the burst scheme is chosen.
-/// * **The burst length is a *maximum*, not a guarantee of work.** A burst only advances on
-///   accepted flits (`req_o & gnt_i`). If the locked winner bubbles (deasserts valid mid-burst) the
-///   output waits for it rather than serving another ready input, i.e. the cell is *not*
-///   work-conserving inside a burst. This is intentional: it keeps the bandwidth ratio exact in the
-///   saturated regime that the WRRA targets. Under non-saturation the ratio degrades gracefully
-///   towards the offered load.
+/// * **The burst length is a *maximum*, not a guarantee of work.** A burst advances on accepted
+///   flits (`req_o & gnt_i`). A downstream stall (`gnt_i` low while the winner still requests) just
+///   pauses the burst. But if the winner *withdraws* its request mid-burst - including being masked
+///   out by an upstream QoS/priority stage - the burst is **abandoned** and the arbiter re-arbitrates
+///   to the next contender (`winner_gone`). This keeps the cell work-conserving and, crucially,
+///   prevents a permanent stall when this cell is wrapped by a dynamic eligibility mask (see
+///   `cc_qos_wrr_arbiter`). Under saturated traffic the winner never withdraws, so the bandwidth
+///   ratio is exact; under non-saturation it degrades gracefully towards the offered load.
 /// * **Weight of 0 means "no service".** An input whose weight is 0 is excluded from arbitration
 ///   entirely: it is skipped and never granted, even while it is requesting (it gets zero
 ///   bandwidth, as the weight says). This also keeps the burst counter from ever loading 0. If
@@ -119,6 +121,8 @@ module cc_wrr_arbiter #(
   logic                 flit_transfered;             // one accepted transfer (flit) from the current winner
   logic                 last_flit;              // this flit is the last of the current burst
   logic                 burst_done;             // last flit accepted -> advance the rr pointer
+  logic                 winner_gone;            // locked winner stopped requesting (e.g. QoS-masked)
+  logic                 round_end;              // burst finished OR winner abandoned -> re-arbitrate
 
   // A weight of 0 means "no bandwidth": that input is excluded from arbitration entirely (skipped,
   // never granted) instead of being served. Only requesting inputs with a non-zero weight contend,
@@ -151,7 +155,7 @@ module cc_wrr_arbiter #(
     .gnt_o   ( /* unused */ ),
     .data_i  ( '0           ),
     .req_o   ( /* unused */ ),
-    .gnt_i   ( burst_done   ), // advance the pointer once per completed burst
+    .gnt_i   ( round_end    ), // advance the pointer when a burst completes or is abandoned
     .data_o  ( /* unused */ ),
     .idx_o   ( winner_idx   )
   );
@@ -182,9 +186,18 @@ module cc_wrr_arbiter #(
   assign last_flit  = (cnt_eff == WtWidth'(1));
   assign burst_done = flit_transfered & last_flit;
 
+  // Abandon the current burst if the locked winner stops requesting (e.g. it was masked out by an
+  // upstream QoS/priority stage). Without this the arbiter stays locked on a winner that can no
+  // longer present a flit and stalls forever; abandoning keeps it work-conserving and lets the next
+  // contender win. Under saturated traffic the winner never withdraws mid-burst, so `winner_gone`
+  // never fires and behaviour is unchanged. (A downstream stall keeps the winner requesting, so it
+  // does NOT abandon - only an actual withdrawal does.)
+  assign winner_gone = (|req_lock_q) & ~eff_req[winner_idx];
+  assign round_end   = burst_done | winner_gone;
+
   // Decrement only on an accepted flit; hold otherwise (covers downstream stalls and bubbles).
   assign cnt_d  = flit_transfered ? (cnt_eff - WtWidth'(1)) : cnt_eff;
-  assign done_d = burst_done;
+  assign done_d = round_end;
 
   `FFARNC(req_lock_q, req_lock_d, flush_i, '0,   clk_i, rst_ni)
   `FFARNC(done_q,     done_d,     flush_i, 1'b0, clk_i, rst_ni)
