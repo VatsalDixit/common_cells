@@ -169,8 +169,12 @@ module cc_wrr_arbiter #(
 
   always_comb begin : proc_gnt_o
     gnt_o = '0;
-    // Only the winning input sees the downstream ready.
-    if (any_req) gnt_o[idx_o] = gnt_i;
+    // Grant the winner only when its flit actually transfers (output valid AND downstream ready).
+    // Gating on `req_o` (not just `gnt_i`) matters when the winner was masked out mid-burst by an
+    // upstream stage (e.g. cc_qos_wrr_arbiter): without it the winner would get a spurious grant for
+    // a flit that never leaves, dropping data. Under saturation req_o is always 1, so this is a
+    // no-op there.
+    if (req_o) gnt_o[idx_o] = gnt_i;
   end
 
   // ---------------------------------------------------------------------------------------------
