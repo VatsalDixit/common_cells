@@ -143,18 +143,26 @@ save(fig, "fig3_weight_proportionality.png")
 # =====================================================================================
 # Fig 4 - QoS+WRRA two-tier shares  (cc_qos_wrr_arbiter_tb at nominal interval, embedded)
 # =====================================================================================
+# Shown at AgingInterval=4 so the low tier is clearly visible (at the nominal 64 it is ~0.8%);
+# the full share-vs-interval tradeoff is fig6. Reconstructed from the aging sweep: high tier =
+# 0.833 split 3:1, low tier = 0.167 split evenly.
 labels = ["in0\nQoS2 w1", "in1\nQoS2 w3", "in2\nQoS0 w1", "in3\nQoS0 w1"]
-share  = [0.246, 0.738, 0.00782, 0.00782]
+share  = [0.2083, 0.6250, 0.0835, 0.0835]
 colors = ["tab:green", "tab:green", "tab:orange", "tab:orange"]
-fig, ax = plt.subplots(figsize=(7, 4.2))
+fig, ax = plt.subplots(figsize=(7, 4.4))
 bars = ax.bar(labels, share, color=colors)
-ax.set_yscale("log")
-ax.set_ylabel("bandwidth share (log scale)")
-ax.set_title("QoS+WRRA: weighted split within the high tier (3:1),\n"
-             "low tier not starved (aging floor)")
+ax.set_ylim(0, 0.72)
+ax.set_ylabel("bandwidth share")
+ax.set_title("QoS+WRRA (AgingInterval=4): weighted 3:1 split in the high tier;\n"
+             "low tier keeps a bounded, non-zero share (aging)")
 for b, s in zip(bars, share):
-    ax.text(b.get_x()+b.get_width()/2, s*1.1, f"{s:.3f}", ha="center", fontsize=9)
-ax.grid(True, axis="y", which="both", alpha=0.3)
+    ax.text(b.get_x()+b.get_width()/2, s+0.012, f"{s:.3f}", ha="center", fontsize=9)
+ax.grid(True, axis="y", alpha=0.3)
+# tier labels (placed in clear space)
+ax.text(0.5, 0.685, "high QoS tier (3:1 by weight)", ha="center", va="center",
+        color="tab:green", fontsize=9)
+ax.text(2.5, 0.20, "low QoS tier\n(served via aging)", ha="center", va="center",
+        color="tab:orange", fontsize=9)
 save(fig, "fig4_qos_two_tier_shares.png")
 
 # =====================================================================================
