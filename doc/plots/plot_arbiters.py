@@ -172,7 +172,8 @@ else:
 # =====================================================================================
 # Fig 6 - Aging-tuning curve  (CSV: aging)  low-tier share & max-wait vs AgingInterval
 # =====================================================================================
-ag = sorted(DATA.get("aging", []), key=lambda r: r["interval"])
+ag = sorted({r["interval"]: r for r in DATA.get("aging", [])}.values(),
+            key=lambda r: r["interval"])  # dedup repeated intervals (nominal + swept)
 if ag:
     iv   = [r["interval"]    for r in ag]
     losh = [r["lo_share"]    for r in ag]
