@@ -200,22 +200,21 @@ if ag:
     iv   = [r["interval"]    for r in ag]
     losh = [r["lo_share"]    for r in ag]
     lomw = [r["lo_maxwait"]  for r in ag]
-    fig, ax1 = plt.subplots(figsize=(7.2, 4.4))
-    l1 = ax1.plot(iv, losh, "o-", color="tab:orange", label="low-tier bandwidth share")
-    ax1.set_xscale("log", base=2)
-    ax1.set_xlabel("AgingInterval  [grants per +1 effective QoS]  (log2)")
-    ax1.set_ylabel("low-tier bandwidth share", color="tab:orange")
-    ax1.tick_params(axis="y", labelcolor="tab:orange")
-    ax1.set_xticks(iv); ax1.set_xticklabels([str(v) for v in iv])
-    ax1.grid(True, alpha=0.3)
-    ax2 = ax1.twinx()
-    l2 = ax2.plot(iv, lomw, "s--", color="tab:blue", label="low-tier max wait")
-    ax2.set_ylabel("low-tier max wait  [cycles]", color="tab:blue")
-    ax2.tick_params(axis="y", labelcolor="tab:blue")
-    ax1.set_title("Aging knob: smaller interval -> fairer to low tier (more share, lower wait);\n"
-                  "larger -> stronger QoS dominance")
-    lines = l1 + l2
-    ax1.legend(lines, [ln.get_label() for ln in lines], loc="upper right")
+    # Two simple single-axis panels (clearer than one dual-axis plot).
+    fig, (axl, axr) = plt.subplots(1, 2, figsize=(10.5, 4.2))
+    axl.plot(iv, [s*100 for s in losh], "o-", color="tab:orange")
+    axl.set_ylabel("low-tier bandwidth share  [%]")
+    axl.set_title("smaller interval  ->  low tier gets MORE bandwidth")
+    axr.plot(iv, lomw, "s-", color="tab:blue")
+    axr.set_ylabel("low-tier worst-case wait  [cycles]")
+    axr.set_title("smaller interval  ->  low tier waits LESS")
+    for ax in (axl, axr):
+        ax.set_xscale("log", base=2)
+        ax.set_xticks(iv); ax.set_xticklabels([str(v) for v in iv])
+        ax.set_xlabel("AgingInterval  (grants before priority climbs)")
+        ax.grid(True, alpha=0.3)
+    fig.suptitle("Aging knob: how AgingInterval trades low-tier service vs. QoS dominance",
+                 fontsize=12)
     save(fig, "fig6_aging_tuning_curve.png")
 else:
     print("skip fig6 (no 'aging' rows in results.csv)")
