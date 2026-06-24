@@ -290,6 +290,18 @@ while QoS+WRRA hugs zero:
 
 ![Urgent-flow latency (mean and max) vs. number of competing flows](plots/fig1_latency_vs_congestion.png)
 
+The animation below makes the *mechanism* behind this curve visible: one urgent flow (top row,
+**URG**) competes with 7 saturated bulk flows (`b1..b7`), arbitrated three ways in lock-step.
+Under **RRA** the bulk grants march one beat at a time (a diagonal) and the urgent flow waits
+about half a rotation; under **WRRA** each bulk flow holds the link for `BulkWeight = 4` beats
+(fat bursts), so the urgent flow's wait (amber) stretches much longer; under **QoS+WRRA** the
+urgent flow's high QoS **preempts** the in-flight burst and is served almost immediately (red).
+It is a faithful behavioural model of the three arbiters at `N = 8` (we have no cycle-accurate
+trace here), with mean urgent waits of ≈ 4.7 / 21.2 / 1.0 cycles respectively — the same
+ordering as the swept curve above.
+
+![Animated requestors: one urgent flow vs. saturated bulk flows under RRA, WRRA, and QoS+WRRA](plots/fig1_requestor_animation.gif)
+
 ### 6.3 QoS through the cascade — `cc_qos_wrr_cascade_tb`
 
 The mixed-radix cascade from §4.2 rebuilt from `cc_qos_wrr_arbiter`, with **per-flit QoS**
