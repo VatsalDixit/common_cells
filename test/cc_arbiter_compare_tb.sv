@@ -35,7 +35,11 @@ module cc_arbiter_compare_tb #(
   parameter int unsigned BulkWeight    = 32'd4,   // weight of each saturated bulk flow
   parameter int unsigned UrgentWeight  = 32'd1,   // weight of the sporadic urgent flow
   parameter int unsigned UrgentQos     = 32'd8,   // QoS of the urgent flow (bulk = 0)
-  parameter int unsigned UrgentGap     = 32'd20,  // think-time (cycles) between urgent requests
+  parameter int unsigned UrgentGap     = 32'd20,  // mean think-time (cycles) between urgent requests
+  /// 0: fixed think-time = UrgentGap (deterministic, but can resonate with the rotation and make
+  /// the latency curve jagged). 1: randomize think-time in [UrgentGap/2, 3*UrgentGap/2] -> smooth
+  /// curves and even bulk shares (breaks the periodic-stimulus resonance; more realistic traffic).
+  parameter bit          GapJitter     = 1'b0,
   parameter int unsigned RunCycles     = 32'd200000
 );
 
@@ -123,7 +127,7 @@ module cc_arbiter_compare_tb #(
 
   for (genvar k = 0; k < 3; k++) begin : gen_urgent
     initial begin
-      automatic int unsigned t0, lat;
+      automatic int unsigned t0, lat, think;
       urg_req[k]   = 1'b0;
       total_lat[k] = 0; max_lat[k] = 0; n_txn[k] = 0;
       @(posedge rst_n);
@@ -142,7 +146,9 @@ module cc_arbiter_compare_tb #(
         if (lat > max_lat[k]) max_lat[k] = lat;
         n_txn[k]++;
         urg_req[k] <= #ApplTime 1'b0;     // served: deassert and think
-        repeat (UrgentGap) @(posedge clk);
+        // fixed or jittered think-time; jitter breaks the gap<->rotation resonance.
+        think = GapJitter ? $urandom_range(UrgentGap/2, (3*UrgentGap)/2) : UrgentGap;
+        repeat (think) @(posedge clk);
       end
     end
   end

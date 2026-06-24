@@ -33,8 +33,8 @@ call_vsim() {
     # Accumulate machine-readable lines across all runs (vsim.log is overwritten each run).
     grep -o 'CSV,.*' vsim.log >> results.csv || true
 
-    # Search the log for QuestaSim successful completion string.
-    grep "Errors: 0," vsim.log
+    # Search the log for QuestaSim successful completion string (warn, don't abort the sweep).
+    grep "Errors: 0," vsim.log || echo "  !! WARNING: non-zero errors in the run above"
   fi
 }
 
@@ -73,7 +73,8 @@ call_vsim cc_qos_wrr_cascade_tb -GUrgentQos=0 -coverage -voptargs="$VOPT_ARGS" -
 # Evaluation: RRA vs WRRA vs QoS+WRRA on identical traffic, swept over the number of competing
 # flows (finer than before for a smooth latency-vs-congestion curve). Emits "CSV,compare,..." lines.
 for N in 4 6 8 12 16 24 32 48; do
-  call_vsim cc_arbiter_compare_tb -GNumInp=$N -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
+  call_vsim cc_arbiter_compare_tb -GNumInp=$N -GGapJitter=1 \
+    -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
 done
 
 # ----------------------------------------------------------------------------------------------
@@ -84,7 +85,7 @@ done
 # Each run prints one "CSV,wrrprop,..." line per input -> measured vs ideal w_i/sum(w_j).
 for MODE in 0 1 2; do
   for N in 4 8 16; do
-    call_vsim cc_wrr_arbiter_tb -GNumInp=$N -GWeightMode=$MODE \
+    call_vsim cc_wrr_arbiter_tb -GNumInp=$N -GWeightMode=$MODE -GWtWidth=8 \
       -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
   done
 done
