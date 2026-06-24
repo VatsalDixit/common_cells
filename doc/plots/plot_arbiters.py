@@ -221,32 +221,48 @@ else:
     print("skip fig6 (no 'aging' rows in results.csv)")
 
 # =====================================================================================
-# Fig 7 - Three QoS tiers across 4 inputs  (CSV: qos3)
+# Fig 7 / 7b - Three QoS tiers across 4 inputs  (CSV: qos3, by scenario)
 # =====================================================================================
-q3 = sorted(DATA.get("qos3", []), key=lambda r: r["in"])
-if q3:
-    labels = [f"in{int(r['in'])}\nQoS{int(r['qos'])} w{int(r['w'])}" for r in q3]
-    shares = [r["share"] for r in q3]
-    qoss = sorted({int(r["qos"]) for r in q3}, reverse=True)
+def plot_qos3(rows, fname, title, note):
+    rows = sorted(rows, key=lambda r: r["in"])
+    labels = [f"in{int(r['in'])}\nQoS{int(r['qos'])} w{int(r['w'])}" for r in rows]
+    shares = [r["share"] for r in rows]
+    qoss = sorted({int(r["qos"]) for r in rows}, reverse=True)
     palette = ["tab:green", "tab:orange", "tab:red", "tab:purple"]
     qcolor = {q: palette[i] for i, q in enumerate(qoss)}
-    colors = [qcolor[int(r["qos"])] for r in q3]
+    colors = [qcolor[int(r["qos"])] for r in rows]
     fig, ax = plt.subplots(figsize=(7.6, 4.6))
     bars = ax.bar(labels, shares, color=colors)
     ax.set_ylim(0, 1.0)
     ax.set_ylabel("bandwidth share")
-    ax.set_title("QoS+WRRA, three QoS tiers (4 inputs): bandwidth ordered by QoS")
+    ax.set_title(title)
     for b, s in zip(bars, shares):
         ax.text(b.get_x()+b.get_width()/2, s + 0.015, f"{s:.3f}", ha="center", fontsize=9)
     ax.grid(True, axis="y", alpha=0.3)
-    note = ("note: in1 (w3) ~ in2 (w1) - equal despite 3:1 weights.\n"
-            "An input promoted by aging is served ~1 flit then demoted\n"
-            "(the grant resets its age), so within-tier weights apply only\n"
-            "in an input's *native* top tier, not when aged up from below.")
-    ax.text(0.97, 0.95, note, transform=ax.transAxes, ha="right", va="top", fontsize=8,
-            bbox=dict(boxstyle="round", facecolor="#fff3e0", edgecolor="gray", alpha=0.95))
-    save(fig, "fig7_qos_three_tiers.png")
+    if note:
+        ax.text(0.97, 0.95, note, transform=ax.transAxes, ha="right", va="top", fontsize=8,
+                bbox=dict(boxstyle="round", facecolor="#fff3e0", edgecolor="gray", alpha=0.95))
+    save(fig, fname)
+
+q3 = DATA.get("qos3", [])
+scen0 = [r for r in q3 if int(r.get("scen", 0)) == 0]
+scen1 = [r for r in q3 if int(r.get("scen", 0)) == 1]
+if scen0:
+    plot_qos3(scen0, "fig7_qos_three_tiers.png",
+              "QoS+WRRA, three QoS tiers (4 inputs): bandwidth ordered by QoS",
+              ("note: in1 (w3) ~ in2 (w1) - equal despite 3:1 weights.\n"
+               "An input promoted by aging is served ~1 flit then demoted\n"
+               "(the grant resets its age), so within-tier weights apply only\n"
+               "in an input's *native* top tier, not when aged up from below."))
 else:
-    print("skip fig7 (no 'qos3' rows in results.csv)")
+    print("skip fig7 (no scenario-0 'qos3' rows)")
+if scen1:
+    plot_qos3(scen1, "fig7b_qos_three_tiers_weighted_top.png",
+              "QoS+WRRA, three QoS tiers: weighted pair in the NATIVE top tier",
+              ("in0 (w3) : in1 (w1) = 3:1 - the within-tier weights DO apply here,\n"
+               "because the weighted pair is the native top tier (always co-eligible),\n"
+               "unlike fig7 where the pair only reached the top by aging."))
+else:
+    print("skip fig7b (no scenario-1 'qos3' rows)")
 
 print("done.")

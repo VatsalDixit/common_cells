@@ -19,7 +19,10 @@
 // the lower tiers from starving. Emits one "CSV,qos3,..." line per input for the report figure.
 module cc_qos_wrr_3tier_tb #(
   parameter int unsigned AgingInterval = 32'd8,
-  parameter int unsigned NumFlits      = 32'd200000
+  parameter int unsigned NumFlits      = 32'd200000,
+  /// 0: QoS {4,2,2,0}, weights {1,3,1,1} - weighted pair is the MID tier (aging nullifies weights).
+  /// 1: QoS {4,4,2,0}, weights {3,1,1,1} - weighted pair is the NATIVE TOP tier (weights apply, 3:1).
+  parameter int unsigned Scenario      = 0
 );
 
   localparam int unsigned NumInp    = 32'd4;
@@ -34,10 +37,18 @@ module cc_qos_wrr_3tier_tb #(
   typedef logic [IdxWidth-1:0]  idx_t;
 
   function automatic int unsigned qos_of(input int unsigned i);
-    case (i) 0: qos_of = 4; 1: qos_of = 2; 2: qos_of = 2; default: qos_of = 0; endcase
+    if (Scenario == 1) begin    // {4,4,2,0}: weighted pair (in0,in1) is the native top tier
+      case (i) 0: qos_of = 4; 1: qos_of = 4; 2: qos_of = 2; default: qos_of = 0; endcase
+    end else begin              // {4,2,2,0}: weighted pair (in1,in2) is the mid tier
+      case (i) 0: qos_of = 4; 1: qos_of = 2; 2: qos_of = 2; default: qos_of = 0; endcase
+    end
   endfunction
   function automatic int unsigned wt_of(input int unsigned i);
-    case (i) 1: wt_of = 3; default: wt_of = 1; endcase
+    if (Scenario == 1) begin    // weight 3 on in0 (top tier)
+      case (i) 0: wt_of = 3; default: wt_of = 1; endcase
+    end else begin              // weight 3 on in1 (mid tier)
+      case (i) 1: wt_of = 3; default: wt_of = 1; endcase
+    end
   endfunction
 
   logic clk, rst_n;
@@ -92,16 +103,19 @@ module cc_qos_wrr_3tier_tb #(
       end
     end
 
-    $display("=== cc_qos_wrr 3-tier (QoS 4/2/2/0, weights 1/3/1/1, AgingInterval=%0d) ===", AgingInterval);
+    $display("=== cc_qos_wrr 3-tier (Scenario=%0d, AgingInterval=%0d) ===", Scenario, AgingInterval);
     for (int unsigned i = 0; i < NumInp; i++) begin
       $display("Input %0d (QoS=%0d, weight=%0d): share=%0f  maxWait=%0d cyc",
                i, qos_of(i), wt_of(i), real'(cnt[i]) / real'(total), max_wait[i]);
-      $display("CSV,qos3,in=%0d,qos=%0d,w=%0d,share=%0f,maxwait=%0d",
-               i, qos_of(i), wt_of(i), real'(cnt[i]) / real'(total), max_wait[i]);
+      $display("CSV,qos3,scen=%0d,in=%0d,qos=%0d,w=%0d,share=%0f,maxwait=%0d",
+               Scenario, i, qos_of(i), wt_of(i), real'(cnt[i]) / real'(total), max_wait[i]);
       assert (cnt[i] > 0) else $error("Input %0d starved.", i);
     end
-    $display("Mid-tier within split cnt[1]/cnt[2] = %0f (weights 3:1)",
-             real'(cnt[1]) / real'(cnt[2]));
+    // the weighted pair is (in1,in2) in scenario 0 (mid tier) or (in0,in1) in scenario 1 (top tier)
+    if (Scenario == 1)
+      $display("Top-tier within split cnt[0]/cnt[1] = %0f (weights 3:1)", real'(cnt[0]) / real'(cnt[1]));
+    else
+      $display("Mid-tier within split cnt[1]/cnt[2] = %0f (weights 3:1)", real'(cnt[1]) / real'(cnt[2]));
     $display("=== 3-tier test done ===");
     $stop();
   end
