@@ -96,15 +96,29 @@ src    = ["r0", "r1", "r2", "r3", "r4"]
 before = [1/12, 1/12, 1/12, 1/4, 1/2]
 after  = [0.2, 0.2, 0.2, 0.2, 0.2]
 x = range(len(src)); w = 0.38
-fig, ax = plt.subplots(figsize=(7.5, 4.2))
+fig, ax = plt.subplots(figsize=(8.2, 4.8))
 ax.bar([i - w/2 for i in x], before, w, label="unit weights (unfair)", color="tab:red")
 ax.bar([i + w/2 for i in x], after,  w, label="source-count weights (fair)", color="tab:green")
 ax.axhline(0.2, ls="--", color="gray", lw=1, label="ideal fair share (1/5)")
 ax.set_xticks(list(x)); ax.set_xticklabels(src)
+ax.set_ylim(0, 0.62)
 ax.set_xlabel("source (r0 = farthest from destination)")
 ax.set_ylabel("end-to-end bandwidth share")
 ax.set_title("Topological unfairness in a NoC cascade, cured by weighted arbitration")
-ax.grid(True, axis="y", alpha=0.3); ax.legend()
+ax.grid(True, axis="y", alpha=0.3); ax.legend(loc="upper left")
+
+# The weights live on the arbiter *ports* (not the sources): every source injects with local
+# weight 1; fairness comes from weighting each through-port by the #sources it aggregates.
+cfg = ("weight configuration (per arbiter port)\n"
+       "unit (red):  every port = 1   -> plain RR per hop\n"
+       "source-count (green):\n"
+       "   A0 (3-in): r0, r1, r2 = 1, 1, 1\n"
+       "   A1 (2-in): through = 3,  r3 = 1\n"
+       "   A2 (2-in): through = 4,  r4 = 1\n"
+       "through weight = # sources it aggregates")
+ax.text(0.020, 0.74, cfg, transform=ax.transAxes, ha="left", va="top",
+        family="monospace", fontsize=8,
+        bbox=dict(boxstyle="round", facecolor="#f4f4f4", edgecolor="gray", alpha=0.95))
 save(fig, "fig2_topological_before_after.png")
 
 # =====================================================================================
