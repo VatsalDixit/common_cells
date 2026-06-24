@@ -65,6 +65,9 @@ bender script vsim -t test > compile.tcl
 # (Set all weights equal for plain QoS + fair round-robin.)
 call_vsim cc_qos_wrr_arbiter_tb -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
 
+# Three QoS tiers across 4 inputs (mid tier split 3:1 by weight). Emits "CSV,qos3,..." per input.
+call_vsim cc_qos_wrr_3tier_tb -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
+
 # QoS through a multi-hop cascade: end-to-end latency of the farthest flow (r0), with QoS
 # (UrgentQos=8) vs the uniform-QoS baseline (UrgentQos=0). QoS should cut r0's latency sharply.
 call_vsim cc_qos_wrr_cascade_tb -GUrgentQos=8 -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"

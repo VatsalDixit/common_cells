@@ -220,4 +220,27 @@ if ag:
 else:
     print("skip fig6 (no 'aging' rows in results.csv)")
 
+# =====================================================================================
+# Fig 7 - Three QoS tiers across 4 inputs  (CSV: qos3)
+# =====================================================================================
+q3 = sorted(DATA.get("qos3", []), key=lambda r: r["in"])
+if q3:
+    labels = [f"in{int(r['in'])}\nQoS{int(r['qos'])} w{int(r['w'])}" for r in q3]
+    shares = [r["share"] for r in q3]
+    qoss = sorted({int(r["qos"]) for r in q3}, reverse=True)
+    palette = ["tab:green", "tab:orange", "tab:red", "tab:purple"]
+    qcolor = {q: palette[i] for i, q in enumerate(qoss)}
+    colors = [qcolor[int(r["qos"])] for r in q3]
+    fig, ax = plt.subplots(figsize=(7.2, 4.5))
+    bars = ax.bar(labels, shares, color=colors)
+    ax.set_ylabel("bandwidth share")
+    ax.set_title("QoS+WRRA with three QoS tiers (4 inputs):\n"
+                 "bandwidth ordered by QoS; mid tier split 3:1 by weight; aging keeps lower tiers alive")
+    for b, s in zip(bars, shares):
+        ax.text(b.get_x()+b.get_width()/2, s + 0.01, f"{s:.3f}", ha="center", fontsize=9)
+    ax.grid(True, axis="y", alpha=0.3)
+    save(fig, "fig7_qos_three_tiers.png")
+else:
+    print("skip fig7 (no 'qos3' rows in results.csv)")
+
 print("done.")
