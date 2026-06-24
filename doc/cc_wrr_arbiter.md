@@ -333,8 +333,10 @@ dominance**. Sweeping it on the two-tier test gives a clean, designer-facing cur
 
 Each time `AgingInterval` **doubles**, the low tier's bandwidth share roughly **halves** and
 its worst-case wait roughly **doubles** (e.g. share `0.20 → 0.008`, max-wait `10 → 258` cycles
-across intervals `2 → 128`). So the value is read off the curve from a requirement — a latency
-bound (blue) or a bandwidth floor (orange) — rather than being a fixed optimum. A practical
+across intervals `2 → 128`). The figure splits this into two simple panels: low-tier
+**bandwidth share** falls as the interval grows (left), while its **worst-case wait** rises
+(right). So the value is read off whichever panel encodes the requirement — a bandwidth floor
+(left) or a latency bound (right) — rather than being a fixed optimum. A practical
 default is `16–32`: the high tier keeps ~94–97 % while the low tier holds a few percent with a
 bounded few-tens-of-cycles wait.
 
