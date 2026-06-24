@@ -148,6 +148,13 @@ This confirms that **a higher weight `ωᵢ` directly buys proportionally more b
 the property the assignment asks to demonstrate. A data-integrity check (`data_o ===
 data_i[idx_o]`) also passes, confirming the output always carries the winning input's data.
 
+![Measured vs. ideal bandwidth share, weights 1–4](plots/fig3_weight_proportionality.png)
+
+Sweeping several weight patterns across several input counts, **every** input's measured share
+lands on the `wᵢ/Σwⱼ` line:
+
+![Weight-proportionality cloud across patterns and input counts](plots/fig5_weight_proportionality_cloud.png)
+
 ### 4.2 Topological-unfairness cascade — `cc_wrr_arbiter_cascade_tb`
 
 Five saturated sources `r0..r4` are merged towards one destination through a
@@ -188,6 +195,8 @@ The before/after pair demonstrates the full result: the WRRA, with weights assig
 additive-up-the-tree rule, **cancels the topological bias and equalises end-to-end
 bandwidth** across sources at any radius and any router radix. The same weights can instead
 be set unequal to *deliberately* favour selected requesters in proportion to their `ωᵢ`.
+
+![Topological unfairness before/after, with the per-hop weight configuration](plots/fig2_topological_before_after.png)
 
 ---
 
@@ -242,22 +251,29 @@ Four saturated inputs: high tier {input 0 (QoS 2, w 1), input 1 (QoS 2, w 3)}, l
 * **No starvation**: the low tier still gets bounded service (`maxWait = 130 ≈ qos_gap ×
   AgingInterval`) — aging works.
 
+The figure below shows the same arbiter at `AgingInterval = 4` (so the low tier is clearly
+visible — at the nominal 64 it is only ~0.8 %): the high tier splits 3:1 by weight, and the
+low tier keeps a bounded, non-zero share via aging.
+
+![QoS+WRRA two-tier shares (AgingInterval=4)](plots/fig4_qos_two_tier_shares.png)
+
 ### 6.2 RRA vs WRRA vs QoS+WRRA — `cc_arbiter_compare_tb` (headline result)
 
 Identical traffic through all three arbiters: `N−1` saturated bulk flows (QoS 0, weight 4)
-plus one sporadic *urgent* flow (QoS 8, weight 1). Swept over the number of competing flows.
-**Urgent-flow request→grant latency (cycles):**
+plus one sporadic *urgent* flow (QoS 8, weight 1), with jittered arrivals. Swept over the
+number of competing flows. **Urgent-flow request→grant latency (cycles):**
 
 | NumInp | RRA mean / max | WRRA mean / max | QoS+WRRA mean / max |
 | ------ | -------------- | --------------- | ------------------- |
-| 4  | 1 / 1   | 4 / 7     | **0 / 1** |
-| 8  | 1 / 4   | 8 / 11    | **0 / 1** |
-| 16 | 10 / 10 | 40 / 40   | **0 / 1** |
-| 32 | 11 / 23 | 104 / 104 | **0 / 1** |
+| 4  | 2.0 / 3   | 9.7 / 15    | **0.76 / 1** |
+| 8  | 4.0 / 7   | 15.6 / 31   | **0.76 / 1** |
+| 16 | 7.1 / 15  | 40.2 / 50   | **0.72 / 1** |
+| 32 | 10.9 / 23 | 104.2 / 114 | **0.48 / 1** |
 
 Reading the result:
-* **QoS+WRRA latency is flat (~0, max 1) regardless of congestion** — the urgent flow jumps
-  the queue at every contention level.
+* **QoS+WRRA latency is flat (< 1 cycle, max 1) regardless of congestion** — the urgent flow
+  jumps the queue at every contention level (the sub-cycle mean is just the occasional 1-cycle
+  re-arbitration when it arrives mid-burst).
 * **RRA latency grows with N** — fair round robin makes the urgent flow wait its turn among
   `N` peers, so latency scales with the number of competitors.
 * **WRRA is *worst*** — giving the urgent flow a low weight makes it wait behind every bulk
@@ -267,6 +283,12 @@ Reading the result:
 * At **low congestion (N = 4, 8) plain RR already matches QoS+WRRA** — there is nothing to
   fix when few flows compete. The benefit is a property of *congestion*, which is exactly why
   the N-sweep (not a single point) is the right way to show it.
+
+The full swept curve (finer `N`, with jittered urgent arrivals so the periodic-stimulus
+resonance of §6.4 does not jag the lines) — note the linear blow-up of WRRA to ~168 cycles
+while QoS+WRRA hugs zero:
+
+![Urgent-flow latency (mean and max) vs. number of competing flows](plots/fig1_latency_vs_congestion.png)
 
 ### 6.3 QoS through the cascade — `cc_qos_wrr_cascade_tb`
 
@@ -296,6 +318,48 @@ same effect as a strobe light appearing to freeze or slowly rotate a spinning wh
 therefore an **artifact of perfectly periodic stimulus**; jittering the inter-arrival gap (as
 real traffic does) breaks the resonance and evens the shares out. It does not affect the
 latency result, the within-tier weighting (§6.1), or correctness (no starvation).
+
+This is confirmed empirically: the comparison testbench has a `GapJitter` knob that randomises
+the urgent think-time. With it enabled the latency curves (fig1) smooth out **and** the bulk
+shares become uniform — the same fix in both places, because both symptoms share the one
+cause (periodic preemption resonating with the rotation).
+
+### 6.5 The aging knob — quantified tradeoff
+
+`AgingInterval` is the single dial that trades **low-tier protection** against **QoS
+dominance**. Sweeping it on the two-tier test gives a clean, designer-facing curve:
+
+![Aging tuning curve: low-tier share and max-wait vs. AgingInterval](plots/fig6_aging_tuning_curve.png)
+
+Each time `AgingInterval` **doubles**, the low tier's bandwidth share roughly **halves** and
+its worst-case wait roughly **doubles** (e.g. share `0.20 → 0.008`, max-wait `10 → 258` cycles
+across intervals `2 → 128`). So the value is read off the curve from a requirement — a latency
+bound (blue) or a bandwidth floor (orange) — rather than being a fixed optimum. A practical
+default is `16–32`: the high tier keeps ~94–97 % while the low tier holds a few percent with a
+bounded few-tens-of-cycles wait.
+
+### 6.6 Three QoS tiers — when does within-tier weighting hold?
+
+Extending to **three** QoS levels across 4 inputs surfaces a subtle but important rule. Two
+scenarios were run (`cc_qos_wrr_3tier_tb`):
+
+**Weighted pair in the *mid* tier** (`QoS {4,2,2,0}`, weights `{1,3,1,1}`): the QoS-2 pair
+in1 (w3) and in2 (w1) get the **same** share — the 3:1 weighting is **lost**.
+
+![Three QoS tiers, weighted pair in the mid tier (weights nullified)](plots/fig7_qos_three_tiers.png)
+
+**Weighted pair in the *native top* tier** (`QoS {4,4,2,0}`, weights `{3,1,1,1}`): now the
+QoS-4 pair in0 (w3) and in1 (w1) split exactly **3:1** (0.680 : 0.227).
+
+![Three QoS tiers, weighted pair in the native top tier (3:1 holds)](plots/fig7b_qos_three_tiers_weighted_top.png)
+
+The reason is the aging mechanism: an input promoted into a higher tier *by aging* is served
+**one flit and then demoted** (the grant resets its age, dropping its effective QoS), so its
+burst — and hence its weight — never takes effect. The conclusion: **within-tier weights apply
+only in an input's *native* top tier** (where it is always co-eligible), not when it is aged up
+from below. This is the concrete, measured form of the aging-vs-weighting tension — two
+mechanisms (round-robin weighting and aging) both deciding "who is served next" and only
+composing cleanly within a single, stable tier.
 
 ---
 
@@ -327,8 +391,11 @@ bugs — each fixed and re-verified:
 | `src/cc_qos_wrr_arbiter.sv`                | QoS priority + aging + weighted RR             |
 | `test/cc_wrr_arbiter_tb.sv`                | flat `wᵢ/Σwⱼ` throughput + weight-0 unit test  |
 | `test/cc_wrr_arbiter_cascade_tb.sv`        | mixed-radix topological-unfairness cascade     |
-| `test/cc_qos_wrr_arbiter_tb.sv`            | two-tier QoS+WRR (weighting + anti-starvation) |
+| `test/cc_qos_wrr_arbiter_tb.sv`            | two-tier QoS+WRR (weighting + anti-starvation + aging sweep) |
+| `test/cc_qos_wrr_3tier_tb.sv`              | three-QoS-tier scenarios (fig7 / fig7b)        |
 | `test/cc_qos_wrr_cascade_tb.sv`            | per-flit-QoS cascade end-to-end latency        |
 | `test/cc_arbiter_compare_tb.sv`            | RRA vs WRRA vs QoS+WRRA latency/throughput sweep |
-| `test/simulate-wrra.sh`                    | runs the simulations                           |
+| `test/simulate-wrra.sh`                    | runs the simulations + sweeps, writes `results.csv` |
 | `test/waves/*.wave.do`                     | GUI waveform setups                            |
+| `doc/plots/plot_arbiters.py`               | turns `results.csv` into the report figures    |
+| `doc/plots/fig*.png`                       | the evaluation figures (fig1–7b)               |
