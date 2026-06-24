@@ -30,6 +30,9 @@ call_vsim() {
     # Run in batch mode.
     echo "run -all" | "$VSIM" "$@" | tee vsim.log 2>&1
 
+    # Accumulate machine-readable lines across all runs (vsim.log is overwritten each run).
+    grep -o 'CSV,.*' vsim.log >> results.csv || true
+
     # Search the log for QuestaSim successful completion string.
     grep "Errors: 0," vsim.log
   fi
@@ -40,6 +43,9 @@ bender script vsim -t test > compile.tcl
 
 # Compile RTL and testbench modules.
 "$VSIM" -c -quiet -do 'source compile.tcl; quit'
+
+# Fresh results file; every run appends its "CSV,..." lines here (-> copy to doc/plots/ to plot).
+: > results.csv
 
 # --- Baseline WRRA checks (already verified; commented out to keep the log short) -------------
 # # Option A: flat N-input weighted throughput check (verifies w_i / sum(w_j) in isolation).
@@ -65,7 +71,27 @@ call_vsim cc_qos_wrr_cascade_tb -GUrgentQos=8 -coverage -voptargs="$VOPT_ARGS" -
 call_vsim cc_qos_wrr_cascade_tb -GUrgentQos=0 -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
 
 # Evaluation: RRA vs WRRA vs QoS+WRRA on identical traffic, swept over the number of competing
-# flows. Watch the urgent-flow latency: ~flat for QoS+WRRA, growing with NumInp for RRA/WRRA.
-for N in 4 8 16 32; do
+# flows (finer than before for a smooth latency-vs-congestion curve). Emits "CSV,compare,..." lines.
+for N in 4 6 8 12 16 24 32 48; do
   call_vsim cc_arbiter_compare_tb -GNumInp=$N -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
+done
+
+# ----------------------------------------------------------------------------------------------
+# Extra sweeps for the richer report graphs (machine-readable "CSV,..." lines in the log).
+# ----------------------------------------------------------------------------------------------
+
+# Weighted-bandwidth proportionality cloud: several weight patterns x several input counts.
+# Each run prints one "CSV,wrrprop,..." line per input -> measured vs ideal w_i/sum(w_j).
+for MODE in 0 1 2; do
+  for N in 4 8 16; do
+    call_vsim cc_wrr_arbiter_tb -GNumInp=$N -GWeightMode=$MODE \
+      -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
+  done
+done
+
+# Aging-tuning curve: sweep AgingInterval in the two-tier test (SweepMode relaxes the fixed
+# asserts). Each run prints one "CSV,aging,..." line -> low-tier share / max-wait vs interval.
+for AI in 2 4 8 16 32 64 128; do
+  call_vsim cc_qos_wrr_arbiter_tb -GAgingInterval=$AI -GSweepMode=1 \
+    -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
 done

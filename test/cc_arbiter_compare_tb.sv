@@ -192,6 +192,12 @@ module cc_arbiter_compare_tb #(
     $display("  max    %8d    %8d    %8d", max_lat[0], max_lat[1], max_lat[2]);
     $display("  txns   %8d    %8d    %8d", n_txn[0], n_txn[1], n_txn[2]);
     $display("============================================================================");
+    // machine-readable summary for the latency-vs-congestion plot
+    $display("CSV,compare,numin=%0d,rra_mean=%0f,rra_max=%0d,wrra_mean=%0f,wrra_max=%0d,qos_mean=%0f,qos_max=%0d",
+             NumInp,
+             (n_txn[0] > 0) ? real'(total_lat[0]) / real'(n_txn[0]) : 0.0, max_lat[0],
+             (n_txn[1] > 0) ? real'(total_lat[1]) / real'(n_txn[1]) : 0.0, max_lat[1],
+             (n_txn[2] > 0) ? real'(total_lat[2]) / real'(n_txn[2]) : 0.0, max_lat[2]);
 
     // Sanity: urgent flow must complete transactions (never starved) under every arbiter.
     assert (n_txn[0] > 0) else $error("Urgent flow starved under RRA.");

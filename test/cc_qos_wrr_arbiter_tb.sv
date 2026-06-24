@@ -25,7 +25,10 @@ module cc_qos_wrr_arbiter_tb #(
   parameter int unsigned WtWidth       = 32'd4,
   parameter int unsigned AgeWidth      = 32'd4,
   parameter int unsigned AgingInterval = 32'd64,
-  parameter int unsigned NumFlits      = 32'd200000
+  parameter int unsigned NumFlits      = 32'd200000,
+  /// When sweeping AgingInterval, set to 1 to relax the QoS-dominance/ratio asserts (they only
+  /// hold at the nominal interval); the CSV line is still emitted for the tuning curve.
+  parameter bit          SweepMode     = 1'b0
 );
 
   localparam time CyclTime = 10ns;
@@ -135,19 +138,28 @@ module cc_qos_wrr_arbiter_tb #(
                i, (i < 2) ? 2 : 0, (i == 1) ? 3 : 1, cnt[i], real'(cnt[i]) / real'(total), max_wait[i]);
     $display("High tier total=%0d  Low tier total=%0d", hi, lo);
 
-    // 3. No starvation: aging must give every input some service.
+    hi_ratio = real'(cnt[1]) / real'(cnt[0]);
+    $display("Within high tier: cnt[1]/cnt[0] = %0f (ideal 3.0)", hi_ratio);
+
+    // machine-readable line for the aging-tuning curve (low-tier share / max wait vs AgingInterval)
+    $display("CSV,aging,interval=%0d,lo_share=%0f,lo_maxwait=%0d,hi_share=%0f,hi_ratio=%0f",
+             AgingInterval, real'(lo) / real'(total),
+             (max_wait[2] > max_wait[3]) ? max_wait[2] : max_wait[3],
+             real'(hi) / real'(total), hi_ratio);
+
+    // 3. No starvation: aging must give every input some service (holds at any interval).
     for (int unsigned i = 0; i < NumInp; i++)
       assert (cnt[i] > 0) else $error("Input %0d starved.", i);
 
-    // 1. QoS priority: high tier dominates the link.
-    assert (hi > 10 * lo)
-      else $error("High QoS tier does not dominate: hi=%0d lo=%0d", hi, lo);
-
-    // 2. Weighted split inside the high tier: input 1 (w=3) ~= 3x input 0 (w=1).
-    hi_ratio = real'(cnt[1]) / real'(cnt[0]);
-    $display("Within high tier: cnt[1]/cnt[0] = %0f (ideal 3.0)", hi_ratio);
-    assert (hi_ratio > 2.7 && hi_ratio < 3.3)
-      else $error("High-tier weight split off: cnt[1]/cnt[0]=%0f (ideal 3.0)", hi_ratio);
+    // The QoS-dominance and 3:1-split checks only hold at the nominal interval; skip when sweeping.
+    if (!SweepMode) begin
+      // 1. QoS priority: high tier dominates the link.
+      assert (hi > 10 * lo)
+        else $error("High QoS tier does not dominate: hi=%0d lo=%0d", hi, lo);
+      // 2. Weighted split inside the high tier: input 1 (w=3) ~= 3x input 0 (w=1).
+      assert (hi_ratio > 2.7 && hi_ratio < 3.3)
+        else $error("High-tier weight split off: cnt[1]/cnt[0]=%0f (ideal 3.0)", hi_ratio);
+    end
 
     $display("=== QoS+WRR arbiter test done ===");
     $stop();

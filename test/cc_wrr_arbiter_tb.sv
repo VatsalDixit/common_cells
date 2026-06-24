@@ -30,8 +30,20 @@ module cc_wrr_arbiter_tb #(
   parameter int unsigned NumFlits = 32'd200000,
   /// Set to an input index to force that input's weight to 0 and verify it is excluded from
   /// arbitration (never granted). The default `NumInp` means "no input is zeroed".
-  parameter int unsigned ZeroIdx  = NumInp
+  parameter int unsigned ZeroIdx  = NumInp,
+  /// Selects the per-input weight pattern (sweep this to populate a measured-vs-ideal cloud):
+  ///   0: w=i+1   1: w=(i%3)+1   2: w=1<<(i%4)  (1,2,4,8,...)
+  parameter int unsigned WeightMode = 0
 );
+
+  // Per-input weight as a function of index and the selected pattern.
+  function automatic int unsigned wfun(input int unsigned i);
+    case (WeightMode)
+      1:       wfun = (i % 3) + 1;
+      2:       wfun = (1 << (i % 4));
+      default: wfun = i + 1;
+    endcase
+  endfunction
 
   localparam time CyclTime = 10ns;
   localparam time ApplTime = 2ns;
@@ -54,9 +66,9 @@ module cc_wrr_arbiter_tb #(
   data_t                           data_oup;
   idx_t                            idx_oup;
 
-  // Constant per-input weight (i+1, or 0 for the excluded input) and a constant data tag.
+  // Per-input weight (from the selected pattern, or 0 for the excluded input) and a data tag.
   for (genvar i = 0; i < NumInp; i++) begin : gen_inp_const
-    assign weights[i]  = (i == ZeroIdx) ? WtWidth'(0) : WtWidth'(i + 1);
+    assign weights[i]  = (i == ZeroIdx) ? WtWidth'(0) : WtWidth'(wfun(i));
     assign data_inp[i] = data_t'(i);
   end
 
@@ -112,7 +124,7 @@ module cc_wrr_arbiter_tb #(
     foreach (cnt[i]) cnt[i] = 0;
     total = 0;
     sum_w = 0;
-    for (int unsigned i = 0; i < NumInp; i++) sum_w += (i == ZeroIdx) ? 0 : (i + 1);
+    for (int unsigned i = 0; i < NumInp; i++) sum_w += (i == ZeroIdx) ? 0 : wfun(i);
 
     @(posedge rst_n);
     repeat (100) @(posedge clk); // skip the start-up transient
@@ -133,14 +145,18 @@ module cc_wrr_arbiter_tb #(
       end
     end
 
-    $display("=== cc_wrr_arbiter flat WRR (NumInp=%0d, sum=%0d, ZeroIdx=%0d) ===", NumInp, sum_w, ZeroIdx);
+    $display("=== cc_wrr_arbiter flat WRR (NumInp=%0d, sum=%0d, ZeroIdx=%0d, WeightMode=%0d) ===",
+             NumInp, sum_w, ZeroIdx, WeightMode);
     for (int unsigned i = 0; i < NumInp; i++) begin
-      wv        = (i == ZeroIdx) ? 0 : (i + 1);
+      wv        = (i == ZeroIdx) ? 0 : wfun(i);
       share     = real'(cnt[i]) / real'(total);
       exp_share = real'(wv)     / real'(sum_w);
       err       = share - exp_share;
       $display("Input %0d: weight=%0d  measured=%0f  ideal=%0f  diff=%0f",
                i, wv, share, exp_share, err);
+      // machine-readable line for the measured-vs-ideal cloud (one point per input)
+      $display("CSV,wrrprop,mode=%0d,numin=%0d,in=%0d,w=%0d,ideal=%0f,meas=%0f",
+               WeightMode, NumInp, i, wv, exp_share, share);
       if (wv == 0) begin
         // A weight-0 input must be excluded entirely: it may never be granted.
         assert (cnt[i] == 0)
