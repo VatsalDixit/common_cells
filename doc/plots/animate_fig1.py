@@ -29,7 +29,7 @@ import numpy as np
 rng = np.random.default_rng(7)   # seeded -> reproducible GIF; jitter matches GapJitter=1
 
 # ---- parameters (mirror cc_arbiter_compare_tb) --------------------------------------
-N        = 8        # 1 urgent (row 0) + 7 saturated bulk flows (rows 1..7)
+N        = 5        # 1 urgent (row 0) + 4 saturated bulk flows (rows 1..4) = cascade source count
 BULK_W   = 4        # BulkWeight: each bulk flow gets 4 consecutive beats under WRRA
 URG_W    = 1        # urgent weight (1 beat) -- it wins on QoS, not on weight
 URG_GAP  = 14       # mean think-time between urgent requests (UrgentGap)
@@ -171,7 +171,7 @@ for ax, (s, desc) in zip(axes, SCHEMES):
     ax.axhline(0.5, color="0.4", lw=0.8)          # separate urgent row from bulk
 axes[-1].set_xlabel("time  (clock cycles)  ->", fontsize=9)
 
-fig.suptitle("Figure 1, animated: one urgent flow vs. 7 saturated bulk flows "
+fig.suptitle(f"Figure 1, animated: one urgent flow vs. {N - 1} saturated bulk flows "
              f"(N={N}, BulkWeight={BULK_W})", fontsize=11)
 legend = [Patch(facecolor=C_URGGR, label="urgent granted"),
           Patch(facecolor=C_URGRQ, label="urgent waiting"),

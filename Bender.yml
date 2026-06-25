@@ -151,6 +151,7 @@ sources:
       - test/cc_qos_wrr_arbiter_tb.sv
       - test/cc_qos_wrr_3tier_tb.sv
       - test/cc_qos_wrr_cascade_tb.sv
+      - test/cc_qos_wrr_cascade_share_tb.sv
       - test/cc_arbiter_compare_tb.sv
 
 

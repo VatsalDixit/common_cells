@@ -80,6 +80,10 @@ for ax, (a, b, c), ttl in [
     ax.plot(N, a, "o-", label="RRA (fair RR)",   color="tab:orange")
     ax.plot(N, b, "s-", label="WRRA (weighted)", color="tab:red")
     ax.plot(N, c, "^-", label="QoS+WRRA",         color="tab:green")
+    if 5 in N:                                   # anchor: same source count as the cascade
+        ax.axvline(5, ls=":", color="0.5", lw=1.2)
+        ax.text(5, ax.get_ylim()[1], " N=5 (cascade\n source count)", color="0.4",
+                fontsize=7, va="top", ha="left")
     ax.set_xlabel("number of competing flows  (NumInp)")
     ax.set_ylabel("urgent-flow latency  [cycles]")
     ax.set_title(ttl)
@@ -263,5 +267,36 @@ if scen1:
                "unlike fig7 where the pair only reached the top by aging."))
 else:
     print("skip fig7b (no scenario-1 'qos3' rows)")
+
+# =====================================================================================
+# Fig 8 - QoS bandwidth share THROUGH the 5-source cascade  (CSV: qoscasc)
+# The cascade analog of fig4: QoS tiers applied to r0..r4, shares measured at the destination.
+# =====================================================================================
+qc = sorted(DATA.get("qoscasc", []), key=lambda r: r["src"])
+if qc:
+    labels = [f"r{int(r['src'])}\nQoS{int(r['qos'])} w{int(r['w'])}" for r in qc]
+    shares = [r["share"] for r in qc]
+    # high tier (QoS>0) green, low tier (QoS0) orange
+    colors = ["tab:green" if int(r["qos"]) > 0 else "tab:orange" for r in qc]
+    fig, ax = plt.subplots(figsize=(8.0, 4.6))
+    bars = ax.bar(labels, shares, color=colors)
+    ax.set_ylim(0, max(shares) * 1.25 if shares else 1.0)
+    ax.set_ylabel("end-to-end bandwidth share (at destination)")
+    ax.set_title("QoS+WRRA through the 5-source cascade: priority survives 3 hops\n"
+                 "(high tier r0-r2 dominates; weighted split r0:r1=3:1 at the A0 merge; "
+                 "low tier kept alive by aging)")
+    for b, s in zip(bars, shares):
+        ax.text(b.get_x()+b.get_width()/2, s + max(shares)*0.02, f"{s:.3f}",
+                ha="center", fontsize=9)
+    ax.grid(True, axis="y", alpha=0.3)
+    # annotate the farthest-source point: r0 is 3 hops away yet leads on QoS
+    ax.text(0.97, 0.95,
+            "r0 is FARTHEST (3 hops) yet leads -\nQoS overrides the topological distance.\n"
+            "Compare fig2, where unit weights starved r0.",
+            transform=ax.transAxes, ha="right", va="top", fontsize=8,
+            bbox=dict(boxstyle="round", facecolor="#e8f5e9", edgecolor="gray", alpha=0.95))
+    save(fig, "fig8_qos_cascade_share.png")
+else:
+    print("skip fig8 (no 'qoscasc' rows in results.csv)")
 
 print("done.")

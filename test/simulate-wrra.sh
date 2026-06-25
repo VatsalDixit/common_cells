@@ -75,9 +75,15 @@ call_vsim cc_qos_wrr_3tier_tb -GScenario=1 -coverage -voptargs="$VOPT_ARGS" -sup
 call_vsim cc_qos_wrr_cascade_tb -GUrgentQos=8 -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
 call_vsim cc_qos_wrr_cascade_tb -GUrgentQos=0 -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
 
+# QoS *bandwidth share* through the same 5-source cascade: all sources saturated, 3-high/2-low
+# layout (weighted pair r0:r1=3:1). Shows QoS priority surviving 3 hops + the weighted split at the
+# A0 merge + aging keeping the low tier alive. Emits one "CSV,qoscasc,..." line per source.
+call_vsim cc_qos_wrr_cascade_share_tb -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
+
 # Evaluation: RRA vs WRRA vs QoS+WRRA on identical traffic, swept over the number of competing
 # flows (finer than before for a smooth latency-vs-congestion curve). Emits "CSV,compare,..." lines.
-for N in 4 6 8 12 16 24 32 48; do
+# N=5 is the anchor point (same source count as the cascade) so the sweeps cross-reference it.
+for N in 5 6 8 12 16 24 32 48; do
   call_vsim cc_arbiter_compare_tb -GNumInp=$N -GGapJitter=1 \
     -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
 done
@@ -89,7 +95,7 @@ done
 # Weighted-bandwidth proportionality cloud: several weight patterns x several input counts.
 # Each run prints one "CSV,wrrprop,..." line per input -> measured vs ideal w_i/sum(w_j).
 for MODE in 0 1 2; do
-  for N in 4 8 16; do
+  for N in 5 8 16; do
     call_vsim cc_wrr_arbiter_tb -GNumInp=$N -GWeightMode=$MODE -GWtWidth=8 \
       -coverage -voptargs="$VOPT_ARGS" -suppress "$SUPPRESS_ID"
   done
