@@ -1,0 +1,747 @@
+<!DOCTYPE html><html><head>
+      <title>cc_wrr_arbiter</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/katex.min.css">
+      
+      
+      
+      
+      
+      
+      
+      <style>
+      code[class*=language-],pre[class*=language-]{color:#333;background:0 0;font-family:Consolas,"Liberation Mono",Menlo,Courier,monospace;text-align:left;white-space:pre;word-spacing:normal;word-break:normal;word-wrap:normal;line-height:1.4;-moz-tab-size:8;-o-tab-size:8;tab-size:8;-webkit-hyphens:none;-moz-hyphens:none;-ms-hyphens:none;hyphens:none}pre[class*=language-]{padding:.8em;overflow:auto;border-radius:3px;background:#f5f5f5}:not(pre)>code[class*=language-]{padding:.1em;border-radius:.3em;white-space:normal;background:#f5f5f5}.token.blockquote,.token.comment{color:#969896}.token.cdata{color:#183691}.token.doctype,.token.macro.property,.token.punctuation,.token.variable{color:#333}.token.builtin,.token.important,.token.keyword,.token.operator,.token.rule{color:#a71d5d}.token.attr-value,.token.regex,.token.string,.token.url{color:#183691}.token.atrule,.token.boolean,.token.code,.token.command,.token.constant,.token.entity,.token.number,.token.property,.token.symbol{color:#0086b3}.token.prolog,.token.selector,.token.tag{color:#63a35c}.token.attr-name,.token.class,.token.class-name,.token.function,.token.id,.token.namespace,.token.pseudo-class,.token.pseudo-element,.token.url-reference .token.variable{color:#795da3}.token.entity{cursor:help}.token.title,.token.title .token.punctuation{font-weight:700;color:#1d3e81}.token.list{color:#ed6a43}.token.inserted{background-color:#eaffea;color:#55a532}.token.deleted{background-color:#ffecec;color:#bd2c00}.token.bold{font-weight:700}.token.italic{font-style:italic}.language-json .token.property{color:#183691}.language-markup .token.tag .token.punctuation{color:#333}.language-css .token.function,code.language-css{color:#0086b3}.language-yaml .token.atrule{color:#63a35c}code.language-yaml{color:#183691}.language-ruby .token.function{color:#333}.language-markdown .token.url{color:#795da3}.language-makefile .token.symbol{color:#795da3}.language-makefile .token.variable{color:#183691}.language-makefile .token.builtin{color:#0086b3}.language-bash .token.keyword{color:#0086b3}pre[data-line]{position:relative;padding:1em 0 1em 3em}pre[data-line] .line-highlight-wrapper{position:absolute;top:0;left:0;background-color:transparent;display:block;width:100%}pre[data-line] .line-highlight{position:absolute;left:0;right:0;padding:inherit 0;margin-top:1em;background:hsla(24,20%,50%,.08);background:linear-gradient(to right,hsla(24,20%,50%,.1) 70%,hsla(24,20%,50%,0));pointer-events:none;line-height:inherit;white-space:pre}pre[data-line] .line-highlight:before,pre[data-line] .line-highlight[data-end]:after{content:attr(data-start);position:absolute;top:.4em;left:.6em;min-width:1em;padding:0 .5em;background-color:hsla(24,20%,50%,.4);color:#f4f1ef;font:bold 65%/1.5 sans-serif;text-align:center;vertical-align:.3em;border-radius:999px;text-shadow:none;box-shadow:0 1px #fff}pre[data-line] .line-highlight[data-end]:after{content:attr(data-end);top:auto;bottom:.4em}html body{font-family:'Helvetica Neue',Helvetica,'Segoe UI',Arial,freesans,sans-serif;font-size:16px;line-height:1.6;color:#333;background-color:#fff;overflow:initial;box-sizing:border-box;word-wrap:break-word}html body>:first-child{margin-top:0}html body h1,html body h2,html body h3,html body h4,html body h5,html body h6{line-height:1.2;margin-top:1em;margin-bottom:16px;color:#000}html body h1{font-size:2.25em;font-weight:300;padding-bottom:.3em}html body h2{font-size:1.75em;font-weight:400;padding-bottom:.3em}html body h3{font-size:1.5em;font-weight:500}html body h4{font-size:1.25em;font-weight:600}html body h5{font-size:1.1em;font-weight:600}html body h6{font-size:1em;font-weight:600}html body h1,html body h2,html body h3,html body h4,html body h5{font-weight:600}html body h5{font-size:1em}html body h6{color:#5c5c5c}html body strong{color:#000}html body del{color:#5c5c5c}html body a:not([href]){color:inherit;text-decoration:none}html body a{color:#08c;text-decoration:none}html body a:hover{color:#00a3f5;text-decoration:none}html body img{max-width:100%}html body>p{margin-top:0;margin-bottom:16px;word-wrap:break-word}html body>ol,html body>ul{margin-bottom:16px}html body ol,html body ul{padding-left:2em}html body ol.no-list,html body ul.no-list{padding:0;list-style-type:none}html body ol ol,html body ol ul,html body ul ol,html body ul ul{margin-top:0;margin-bottom:0}html body li{margin-bottom:0}html body li.task-list-item{list-style:none}html body li>p{margin-top:0;margin-bottom:0}html body .task-list-item-checkbox{margin:0 .2em .25em -1.8em;vertical-align:middle}html body .task-list-item-checkbox:hover{cursor:pointer}html body blockquote{margin:16px 0;font-size:inherit;padding:0 15px;color:#5c5c5c;background-color:#f0f0f0;border-left:4px solid #d6d6d6}html body blockquote>:first-child{margin-top:0}html body blockquote>:last-child{margin-bottom:0}html body hr{height:4px;margin:32px 0;background-color:#d6d6d6;border:0 none}html body table{margin:10px 0 15px 0;border-collapse:collapse;border-spacing:0;display:block;width:100%;overflow:auto;word-break:normal;word-break:keep-all}html body table th{font-weight:700;color:#000}html body table td,html body table th{border:1px solid #d6d6d6;padding:6px 13px}html body dl{padding:0}html body dl dt{padding:0;margin-top:16px;font-size:1em;font-style:italic;font-weight:700}html body dl dd{padding:0 16px;margin-bottom:16px}html body code{font-family:Menlo,Monaco,Consolas,'Courier New',monospace;font-size:.85em;color:#000;background-color:#f0f0f0;border-radius:3px;padding:.2em 0}html body code::after,html body code::before{letter-spacing:-.2em;content:'\00a0'}html body pre>code{padding:0;margin:0;word-break:normal;white-space:pre;background:0 0;border:0}html body .highlight{margin-bottom:16px}html body .highlight pre,html body pre{padding:1em;overflow:auto;line-height:1.45;border:#d6d6d6;border-radius:3px}html body .highlight pre{margin-bottom:0;word-break:normal}html body pre code,html body pre tt{display:inline;max-width:initial;padding:0;margin:0;overflow:initial;line-height:inherit;word-wrap:normal;background-color:transparent;border:0}html body pre code:after,html body pre code:before,html body pre tt:after,html body pre tt:before{content:normal}html body blockquote,html body dl,html body ol,html body p,html body pre,html body ul{margin-top:0;margin-bottom:16px}html body kbd{color:#000;border:1px solid #d6d6d6;border-bottom:2px solid #c7c7c7;padding:2px 4px;background-color:#f0f0f0;border-radius:3px}@media print{html body{background-color:#fff}html body h1,html body h2,html body h3,html body h4,html body h5,html body h6{color:#000;page-break-after:avoid}html body blockquote{color:#5c5c5c}html body pre{page-break-inside:avoid}html body table{display:table}html body img{display:block;max-width:100%;max-height:100%}html body code,html body pre{word-wrap:break-word;white-space:pre}}.markdown-preview{width:100%;height:100%;box-sizing:border-box}.markdown-preview ul{list-style:disc}.markdown-preview ul ul{list-style:circle}.markdown-preview ul ul ul{list-style:square}.markdown-preview ol{list-style:decimal}.markdown-preview ol ol,.markdown-preview ul ol{list-style-type:lower-roman}.markdown-preview ol ol ol,.markdown-preview ol ul ol,.markdown-preview ul ol ol,.markdown-preview ul ul ol{list-style-type:lower-alpha}.markdown-preview .newpage,.markdown-preview .pagebreak{page-break-before:always}.markdown-preview pre.line-numbers{position:relative;padding-left:3.8em;counter-reset:linenumber}.markdown-preview pre.line-numbers>code{position:relative}.markdown-preview pre.line-numbers .line-numbers-rows{position:absolute;pointer-events:none;top:1em;font-size:100%;left:0;width:3em;letter-spacing:-1px;border-right:1px solid #999;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}.markdown-preview pre.line-numbers .line-numbers-rows>span{pointer-events:none;display:block;counter-increment:linenumber}.markdown-preview pre.line-numbers .line-numbers-rows>span:before{content:counter(linenumber);color:#999;display:block;padding-right:.8em;text-align:right}.markdown-preview .mathjax-exps .MathJax_Display{text-align:center!important}.markdown-preview:not([data-for=preview]) .code-chunk .code-chunk-btn-group{display:none}.markdown-preview:not([data-for=preview]) .code-chunk .status{display:none}.markdown-preview:not([data-for=preview]) .code-chunk .output-div{margin-bottom:16px}.markdown-preview .md-toc{padding:0}.markdown-preview .md-toc .md-toc-details{margin:0;padding:0;border:none}.markdown-preview .md-toc summary.md-toc-link-wrapper{cursor:pointer;list-style-position:outside}.markdown-preview .md-toc summary.md-toc-link-wrapper::marker{font-size:.85em}.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link{display:inline;padding:.25rem 0}.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link div,.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link p{display:inline}.markdown-preview .md-toc .md-toc-link-wrapper.highlighted .md-toc-link{font-weight:800}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='0']{margin-left:12px}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='1']{margin-left:28px}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='2']{margin-left:44px}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='3']{margin-left:60px}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='4']{margin-left:76px}.markdown-preview .md-toc .md-toc-link-wrapper[data-level='5']{margin-left:80px}.markdown-preview a.tag,.markdown-preview a.tag:active,.markdown-preview a.tag:link,.markdown-preview a.tag:visited,.markdown-preview span.tag:not(.token){display:inline-block;background-color:var(--vscode-badge-background,rgba(127,127,127,.18));color:var(--vscode-badge-foreground,currentColor);border-radius:2em;font-size:.85em;font-weight:500;padding:.05em .55em;line-height:1.5;white-space:nowrap;text-decoration:none;text-shadow:none;box-shadow:none;transition:background-color .12s ease,opacity .12s ease}.markdown-preview a.tag{cursor:pointer}.markdown-preview a.tag:focus,.markdown-preview a.tag:hover{background-color:var(--vscode-badge-background,rgba(127,127,127,.32));color:var(--vscode-badge-foreground,currentColor);opacity:.85;text-decoration:none;outline:0}.markdown-preview .wikilink-embed-content{border-left:3px solid var(--vscode-textBlockQuote-border,rgba(128,128,128,.3));background:var(--vscode-textBlockQuote-background,rgba(128,128,128,.05));margin:.5em 0;padding:.5em .75em;border-radius:0 3px 3px 0}.markdown-preview .wikilink-embed-content.wikilink-embed-error{border-left-color:var(--vscode-errorForeground,#cf222e);color:var(--vscode-errorForeground,#cf222e);font-style:italic;opacity:.8}.markdown-preview .wikilink-embed-content h1:first-child,.markdown-preview .wikilink-embed-content h2:first-child,.markdown-preview .wikilink-embed-content h3:first-child,.markdown-preview .wikilink-embed-content h4:first-child,.markdown-preview .wikilink-embed-content h5:first-child,.markdown-preview .wikilink-embed-content h6:first-child{margin-top:.25em}.markdown-preview .wikilink-embed-content .wikilink-embed-content{margin:.25em 0;padding:.25em .5em}.markdown-preview .block-id{display:none}.scrollbar-style::-webkit-scrollbar{width:8px}.scrollbar-style::-webkit-scrollbar-track{border-radius:10px;background-color:transparent}.scrollbar-style::-webkit-scrollbar-thumb{border-radius:5px;background-color:var(--vscode-scrollbarSlider-background,rgba(150,150,150,.66));border:4px solid var(--vscode-scrollbarSlider-background,rgba(150,150,150,.66));background-clip:content-box}.scrollbar-style::-webkit-scrollbar-thumb:hover{background-color:var(--vscode-scrollbarSlider-hoverBackground,rgba(120,120,120,.66))}html body[for=html-export]:not([data-presentation-mode]){position:relative;width:100%;height:100%;top:0;left:0;margin:0;padding:0;overflow:auto}html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{position:relative;top:0;min-height:100vh}@media screen and (min-width:914px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{padding:2em calc(50% - 457px + 2em)}}@media screen and (max-width:914px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{padding:2em}}@media screen and (max-width:450px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{font-size:14px!important;padding:1em}}@media print{html body[for=html-export]:not([data-presentation-mode]) #sidebar-toc-btn{display:none}}html body[for=html-export]:not([data-presentation-mode]) #sidebar-toc-btn{position:fixed;bottom:8px;left:8px;font-size:28px;cursor:pointer;color:inherit;z-index:99;width:32px;text-align:center;opacity:.4}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] #sidebar-toc-btn{opacity:1}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc{position:fixed;top:0;left:0;width:300px;height:100%;padding:32px 0 48px 0;font-size:14px;box-shadow:0 0 4px rgba(150,150,150,.33);box-sizing:border-box;overflow:auto;background-color:inherit}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar{width:8px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar-track{border-radius:10px;background-color:transparent}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar-thumb{border-radius:5px;background-color:var(--vscode-scrollbarSlider-background,rgba(150,150,150,.66));border:4px solid var(--vscode-scrollbarSlider-background,rgba(150,150,150,.66));background-clip:content-box}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar-thumb:hover{background-color:var(--vscode-scrollbarSlider-hoverBackground,rgba(120,120,120,.66))}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc a{text-decoration:none}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc{padding:0 16px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-details{margin:0;padding:0;border:none}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link{display:inline;padding:.25rem 0}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link div,html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link p{display:inline}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper.highlighted .md-toc-link{font-weight:800}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='0']{padding-left:0}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='1']{padding-left:16px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='2']{padding-left:32px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='3']{padding-left:48px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='4']{padding-left:64px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper[data-level='5']{padding-left:80px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{left:300px;width:calc(100% - 300px);padding:2em calc(50% - 457px - 300px / 2);margin:0;box-sizing:border-box}@media screen and (max-width:1274px){html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{padding:2em}}@media screen and (max-width:450px){html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{width:100%}}html body[for=html-export]:not([data-presentation-mode]):not([html-show-sidebar-toc]) .markdown-preview{left:50%;transform:translateX(-50%)}html body[for=html-export]:not([data-presentation-mode]):not([html-show-sidebar-toc]) .md-sidebar-toc{display:none}
+/* Please visit the URL below for more information: */
+/*   https://shd101wyy.github.io/markdown-preview-enhanced/#/customize-css */
+
+      </style>
+      <!-- The content below will be included at the end of the <head> element. -->
+<script type="text/javascript">
+  document.addEventListener("DOMContentLoaded", function () {
+    // your code here
+  });
+</script>
+    </head>
+    <body for="html-export">
+      <div class="crossnote markdown-preview  ">
+      
+<h1 id="weighted-round-robin-arbiter-cc_wrr_arbiter">Weighted Round-Robin Arbiter (<code>cc_wrr_arbiter</code>) </h1>
+<p><strong>SoC-DAML — Extending FlooNoC with Weighted Round-Robin Arbitration</strong><br>
+Student: Vatsal Dixit</p>
+<hr>
+<h2 id="1-motivation-topological-unfairness-in-a-noc">1. Motivation: topological unfairness in a NoC </h2>
+<p>A plain round-robin (RR) arbiter is <em>locally</em> fair: when <code>n</code> inputs contend, each<br>
+receives <code>1/n</code> of the output bandwidth. In a NoC, however, traffic towards a common<br>
+destination is merged by a <strong>chain/tree of arbiters</strong>, and local fairness at each hop<br>
+does <strong>not</strong> give global fairness. Working back from the 1.0 bottleneck link of a<br>
+linear chain of fair 2-input arbiters (Dally &amp; Towles, <em>Principles and Practices of<br>
+Interconnection Networks</em>):</p>
+<table>
+<thead>
+<tr>
+<th>Arbiter</th>
+<th>splits</th>
+<th>local source</th>
+<th>through (upstream)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A2</td>
+<td>1.0</td>
+<td>r3 = 0.50</td>
+<td>0.50</td>
+</tr>
+<tr>
+<td>A1</td>
+<td>0.50</td>
+<td>r2 = 0.25</td>
+<td>0.25</td>
+</tr>
+<tr>
+<td>A0</td>
+<td>0.25</td>
+<td>r1 = 0.125</td>
+<td>r0 = 0.125</td>
+</tr>
+</tbody>
+</table>
+<p>The source farthest from the destination (<code>r0</code>) is starved at <code>1/8</code> while the nearest<br>
+(<code>r3</code>) takes <code>1/2</code>. This is <strong>topological unfairness</strong>: it is a property of <em>where</em> a<br>
+requester sits, not of the arbiter being unfair.</p>
+<p><strong>Fix.</strong> Replace each RR arbiter with a <em>weighted</em> RR arbiter and weight every input by<br>
+the number of original requesters whose traffic it aggregates. Because each "through"<br>
+input is the funnel for all upstream sources, its weight must reflect that. Weights are<br>
+<strong>additive up the tree</strong> (an arbiter input's weight = sum of the leaf weights it carries),<br>
+so every leaf source ends up with an equal — or, more generally, an <code>ωᵢ</code>-proportional —<br>
+share at the bottleneck, regardless of hop depth or router radix.</p>
+<hr>
+<h2 id="2-the-cell">2. The cell </h2>
+<p><code>cc_wrr_arbiter</code> is a generic, <code>NumIn</code>-input, valid/ready arbiter that merges its inputs<br>
+onto one output while distributing bandwidth proportionally to a per-input weight:</p>
+<pre data-role="codeBlock" data-info="" class="language-text"><code>bandwidth_i = w_i / Σ_j w_j      (j over the currently-contending inputs)
+</code></pre><h3 id="interface-summary">Interface (summary) </h3>
+<table>
+<thead>
+<tr>
+<th>Port</th>
+<th>Dir</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>req_i</code></td>
+<td>in</td>
+<td>per-input valid</td>
+</tr>
+<tr>
+<td><code>gnt_o</code></td>
+<td>out</td>
+<td>per-input ready (one-hot)</td>
+</tr>
+<tr>
+<td><code>data_i</code></td>
+<td>in</td>
+<td>per-input payload (<code>data_t</code>, generic)</td>
+</tr>
+<tr>
+<td><code>weights_i</code></td>
+<td>in</td>
+<td>per-input weight (<code>WtWidth</code> bits each)</td>
+</tr>
+<tr>
+<td><code>req_o</code></td>
+<td>out</td>
+<td>output valid</td>
+</tr>
+<tr>
+<td><code>gnt_i</code></td>
+<td>in</td>
+<td>output ready</td>
+</tr>
+<tr>
+<td><code>data_o</code></td>
+<td>out</td>
+<td>winning input's payload</td>
+</tr>
+<tr>
+<td><code>idx_o</code></td>
+<td>out</td>
+<td>winning input index</td>
+</tr>
+<tr>
+<td><code>flush_i</code></td>
+<td>in</td>
+<td>synchronous clear of arbiter state</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mechanism-deficit--burst-weighted-round-robin">Mechanism: deficit / burst weighted round robin </h3>
+<p>The weight is realised as a <strong>burst</strong>. When an input wins, it is granted up to <code>wᵢ</code><br>
+consecutive flits (one flit = one accepted valid/ready transfer) before the round-robin<br>
+pointer advances to the next contender. Over one full rotation that visits every contender<br>
+once, input <code>i</code> emits <code>wᵢ</code> of <code>Σⱼ wⱼ</code> flits — giving the bandwidth split above.</p>
+<p>(Note: a <em>burst</em> here is a bandwidth allowance — <code>wᵢ</code> consecutive flits from one input — and<br>
+is deliberately <strong>not</strong> a NoC <em>packet</em>. The flits in a burst are independent and may span<br>
+several logical packets; "packet" is reserved for the atomic wormhole-routed unit.)</p>
+<p>The cell is a thin wrapper around the existing <code>cc_rr_arb_tree</code>:</p>
+<ul>
+<li>The inner <code>cc_rr_arb_tree</code> (with <code>FairArb</code> + <code>LockIn</code>) is used <strong>only as a winner<br>
+picker</strong> — it produces the winning index and holds it stable. Its <code>gnt_i</code> is pulsed<br>
+exactly <strong>once per burst</strong> (on the last accepted flit), so its round-robin pointer<br>
+advances once per burst rather than once per flit.</li>
+<li>The data path and the per-input ready are muxed externally from the winning index.</li>
+<li>A burst counter (<code>cnt</code>) tracks the flits remaining in the current burst.</li>
+</ul>
+<hr>
+<h2 id="3-design-decisions-and-trade-offs">3. Design decisions and trade-offs </h2>
+<p>These are also documented inline in <code>src/cc_wrr_arbiter.sv</code>.</p>
+<ol>
+<li>
+<p><strong>Burst weighting (deficit RR), not interleaving.</strong> A burst arbiter is small and<br>
+simple. The cost is <em>burstiness</em>: a low-weight input waits through a full high-weight<br>
+burst, so its latency/jitter is worse than a WFQ-style interleaved scheme would give.<br>
+The steady-state <strong>bandwidth</strong> ratio is identical either way, so for bandwidth shaping<br>
+under contention the burst scheme is the right trade.</p>
+</li>
+<li>
+<p><strong>Reuse <code>cc_rr_arb_tree</code> for selection.</strong> Rather than re-implement fair rotation, the<br>
+cell layers the burst counter on the proven tree. This keeps the new logic minimal<br>
+and inherits the tree's fairness and timing properties.</p>
+</li>
+<li>
+<p><strong>Contender snapshot (<code>req_lock_q</code>).</strong> The inner arbiter's <code>LockIn</code> carries a formal<br>
+assumption that <em>unserved requests are not deasserted while it is locked</em>. The wrapper<br>
+therefore feeds the inner arbiter a <strong>frozen snapshot</strong> of the contender set, captured<br>
+at the start of each burst and held until the burst completes. This keeps the inner<br>
+arbiter within its usage contract even if a non-winning input bubbles mid-burst (which<br>
+is harmless to the served traffic, but would otherwise trip the inner assertion). The<br>
+snapshot is only refreshed on burst-boundary cycles, where the inner lock is<br>
+disengaged and refreshing is legal.</p>
+</li>
+<li>
+<p><strong><code>cnt_eff</code> makes the weight live on the first flit.</strong> A plain counter register lags by<br>
+one cycle, so on the first flit of a burst it would still hold the previous value. The<br>
+cell uses <code>cnt_eff = load_round ? sel_weight : cnt_q</code>, which presents the freshly<br>
+selected weight on the very first flit. Without this, the first winner after every idle<br>
+period would be truncated to a single grant (this was a bug in the original<br>
+<code>floo_wrr_arbiter</code> prototype this cell is derived from).</p>
+</li>
+<li>
+<p><strong>Non-work-conserving within a burst (intentional).</strong> A burst only advances on accepted<br>
+flits. If the locked winner bubbles, the output waits for it rather than serving another<br>
+ready input. This keeps the bandwidth ratio exact in the <strong>saturated</strong> regime the WRRA<br>
+targets (the regime in which the topological-unfairness analysis is defined). Under<br>
+non-saturation the ratio degrades gracefully towards the offered load.</p>
+</li>
+<li>
+<p><strong>Weight <code>0</code> means "no service".</strong> A weight-0 input is excluded from arbitration entirely —<br>
+skipped and never granted, even while requesting (it gets zero bandwidth, as the weight says).<br>
+This is implemented by masking it out of the contention set (<code>eff_req = req_i &amp; (weight != 0)</code>),<br>
+which also keeps the burst counter from ever loading <code>0</code>. If <em>every</em> requester has weight 0 the<br>
+output simply stays idle.</p>
+</li>
+</ol>
+<hr>
+<h2 id="4-evaluation">4. Evaluation </h2>
+<p>Two testbenches verify the cell; both pass with <code>Errors: 0</code> in QuestaSim. Run via:</p>
+<pre data-role="codeBlock" data-info="" class="language-text"><code>make vsim-elab
+cd build/vsim
+bash ../../test/simulate-wrra.sh
+</code></pre><h3 id="41-unit-check--cc_wrr_arbiter_tb">4.1 Unit check — <code>cc_wrr_arbiter_tb</code> </h3>
+<p>A single flat 4-input arbiter, all inputs saturated, weights <code>wᵢ = i+1</code> (sum 10). The<br>
+measured bandwidth share matches the <code>wᵢ/Σwⱼ</code> ideal exactly:</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Weight</th>
+<th>Measured</th>
+<th>Ideal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>1</td>
+<td>0.100</td>
+<td>0.100</td>
+</tr>
+<tr>
+<td>1</td>
+<td>2</td>
+<td>0.200</td>
+<td>0.200</td>
+</tr>
+<tr>
+<td>2</td>
+<td>3</td>
+<td>0.300</td>
+<td>0.300</td>
+</tr>
+<tr>
+<td>3</td>
+<td>4</td>
+<td>0.400</td>
+<td>0.400</td>
+</tr>
+</tbody>
+</table>
+<p>This confirms that <strong>a higher weight <code>ωᵢ</code> directly buys proportionally more bandwidth</strong> —<br>
+the property the assignment asks to demonstrate. A data-integrity check (<code>data_o === data_i[idx_o]</code>) also passes, confirming the output always carries the winning input's data.</p>
+<p><img src="plots/fig3_weight_proportionality.png" alt="Measured vs. ideal bandwidth share, weights 1–4"></p>
+<p>Sweeping several weight patterns across several input counts, <strong>every</strong> input's measured share<br>
+lands on the <code>wᵢ/Σwⱼ</code> line:</p>
+<p><img src="plots/fig5_weight_proportionality_cloud.png" alt="Weight-proportionality cloud across patterns and input counts"></p>
+<h3 id="42-topological-unfairness-cascade--cc_wrr_arbiter_cascade_tb">4.2 Topological-unfairness cascade — <code>cc_wrr_arbiter_cascade_tb</code> </h3>
+<p>Five saturated sources <code>r0..r4</code> are merged towards one destination through a<br>
+<strong>mixed-radix</strong> cascade — a 3-input first hop plus two 2-input hops — to show the cell<br>
+works at arbitrary radix:</p>
+<pre data-role="codeBlock" data-info="" class="language-text"><code> r0 r1 r2 ─►[A0 (3-in)]─┐
+                        ├─►[A1 (2-in)]─┐
+                   r3 ──┘              ├─►[A2 (2-in)]─► Dest
+                                  r4 ──┘
+</code></pre><p>Each flit carries its source id as payload, so counting payloads at the destination gives<br>
+each source's end-to-end share. Two configurations are run:</p>
+<p><strong><code>Weighted = 0</code> (unit weights → plain RR at each hop): topological unfairness reproduced</strong></p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Measured</th>
+<th>Ideal (1/12, 1/4, 1/2)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>r0</td>
+<td>0.0833</td>
+<td>0.0833</td>
+</tr>
+<tr>
+<td>r1</td>
+<td>0.0833</td>
+<td>0.0833</td>
+</tr>
+<tr>
+<td>r2</td>
+<td>0.0833</td>
+<td>0.0833</td>
+</tr>
+<tr>
+<td>r3</td>
+<td>0.2500</td>
+<td>0.2500</td>
+</tr>
+<tr>
+<td>r4</td>
+<td>0.5000</td>
+<td>0.5000</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>Weighted = 1</code> (through-weights = aggregated source count, A1=3, A2=4): fairness restored</strong></p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Measured</th>
+<th>Ideal (1/5)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>r0</td>
+<td>0.2000</td>
+<td>0.2000</td>
+</tr>
+<tr>
+<td>r1</td>
+<td>0.2000</td>
+<td>0.2000</td>
+</tr>
+<tr>
+<td>r2</td>
+<td>0.2000</td>
+<td>0.2000</td>
+</tr>
+<tr>
+<td>r3</td>
+<td>0.2000</td>
+<td>0.2000</td>
+</tr>
+<tr>
+<td>r4</td>
+<td>0.2000</td>
+<td>0.2000</td>
+</tr>
+</tbody>
+</table>
+<p>The before/after pair demonstrates the full result: the WRRA, with weights assigned by the<br>
+additive-up-the-tree rule, <strong>cancels the topological bias and equalises end-to-end<br>
+bandwidth</strong> across sources at any radius and any router radix. The same weights can instead<br>
+be set unequal to <em>deliberately</em> favour selected requesters in proportion to their <code>ωᵢ</code>.</p>
+<p><img src="plots/fig2_topological_before_after.png" alt="Topological unfairness before/after, with the per-hop weight configuration"></p>
+<hr>
+<h2 id="5-extension-qos-priority--weighted-rr-cc_qos_wrr_arbiter">5. Extension: QoS priority + weighted RR (<code>cc_qos_wrr_arbiter</code>) </h2>
+<p>The WRRA controls <strong>bandwidth</strong> (how much of the link each input gets). It cannot control<br>
+<strong>latency</strong> — which request should be served <em>first</em>. These are two orthogonal axes:</p>
+<table>
+<thead>
+<tr>
+<th>knob</th>
+<th>controls</th>
+<th>answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>weights_i</code> (WRRA)</td>
+<td>bandwidth (rate)</td>
+<td>"how <em>much</em> of the link does this input get?"</td>
+</tr>
+<tr>
+<td><code>qos_i</code> (QoS)</td>
+<td>priority (latency)</td>
+<td>"when several wait, who goes <em>first</em>?"</td>
+</tr>
+</tbody>
+</table>
+<p><code>cc_qos_wrr_arbiter</code> combines both. A per-input <code>qos_i</code> (like AXI <code>AxQOS</code>) selects the<br>
+served <strong>tier</strong>; within that tier, bandwidth is split by <code>weights_i</code> via <code>cc_wrr_arbiter</code>:</p>
+<pre data-role="codeBlock" data-info="" class="language-text"><code>effective_qos[i] = qos_i[i] + age[i]
+max_eff          = max over contenders of effective_qos[i]
+eligible[i]      = req_i[i] &amp;&amp; (effective_qos[i] == max_eff)   // the winning QoS tier
+winner           = weighted round robin (by weights_i) among `eligible`
+</code></pre><ul>
+<li><strong>Anti-starvation via aging.</strong> Strict priority would starve low-QoS traffic forever. To<br>
+prevent it, a waiting request's <em>effective</em> QoS <strong>ages upward</strong>: <code>age[i]</code> climbs by 1 every<br>
+<code>AgingInterval</code> <strong>grants</strong> (forward-progress cycles, not clock cycles — so a stall does not<br>
+inflate ages) while the input is requesting but stuck below the winning tier. So any<br>
+requester is guaranteed service within a bounded number of grants.</li>
+<li><strong>Tier across, weights within.</strong> Across tiers QoS dominates (high QoS preempts); within a<br>
+tier weights split the bandwidth. Weight 0 excludes an input from arbitration entirely.</li>
+</ul>
+<hr>
+<h2 id="6-evaluation-of-qos--wrr">6. Evaluation of QoS + WRR </h2>
+<p>All testbenches pass with <code>Errors: 0</code>.</p>
+<h3 id="61-stable-two-tier-check--cc_qos_wrr_arbiter_tb">6.1 Stable two-tier check — <code>cc_qos_wrr_arbiter_tb</code> </h3>
+<p>Four saturated inputs: high tier {input 0 (QoS 2, w 1), input 1 (QoS 2, w 3)}, low tier<br>
+{input 2, 3 (QoS 0, w 1)}, <code>AgingInterval = 64</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>QoS</th>
+<th>weight</th>
+<th>share</th>
+<th>maxWait</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>2</td>
+<td>1</td>
+<td>0.246</td>
+<td>6 cyc</td>
+</tr>
+<tr>
+<td>1</td>
+<td>2</td>
+<td>3</td>
+<td>0.738</td>
+<td>4 cyc</td>
+</tr>
+<tr>
+<td>2</td>
+<td>0</td>
+<td>1</td>
+<td>0.0078</td>
+<td>130 cyc</td>
+</tr>
+<tr>
+<td>3</td>
+<td>0</td>
+<td>1</td>
+<td>0.0078</td>
+<td>130 cyc</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Within-tier weighting is exact</strong>: <code>cnt[1]/cnt[0] = 3.0000</code> (the 3:1 weights).</li>
+<li><strong>QoS priority</strong>: the high tier takes 98.4 % of the link.</li>
+<li><strong>No starvation</strong>: the low tier still gets bounded service (<code>maxWait = 130 ≈ qos_gap × AgingInterval</code>) — aging works.</li>
+</ul>
+<p>The figure below shows the same arbiter at <code>AgingInterval = 4</code> (so the low tier is clearly<br>
+visible — at the nominal 64 it is only ~0.8 %): the high tier splits 3:1 by weight, and the<br>
+low tier keeps a bounded, non-zero share via aging.</p>
+<p><img src="plots/fig4_qos_two_tier_shares.png" alt="QoS+WRRA two-tier shares (AgingInterval=4)"></p>
+<h3 id="62-rra-vs-wrra-vs-qoswrra--cc_arbiter_compare_tb-headline-result">6.2 RRA vs WRRA vs QoS+WRRA — <code>cc_arbiter_compare_tb</code> (headline result) </h3>
+<p>Identical traffic through all three arbiters: <code>N−1</code> saturated bulk flows (QoS 0, weight 4)<br>
+plus one sporadic <em>urgent</em> flow (QoS 8, weight 1), with jittered arrivals. Swept over the<br>
+number of competing flows. <strong>Urgent-flow request→grant latency (cycles):</strong></p>
+<table>
+<thead>
+<tr>
+<th>NumInp</th>
+<th>RRA mean / max</th>
+<th>WRRA mean / max</th>
+<th>QoS+WRRA mean / max</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4</td>
+<td>2.0 / 3</td>
+<td>9.7 / 15</td>
+<td><strong>0.76 / 1</strong></td>
+</tr>
+<tr>
+<td>8</td>
+<td>4.0 / 7</td>
+<td>15.6 / 31</td>
+<td><strong>0.76 / 1</strong></td>
+</tr>
+<tr>
+<td>16</td>
+<td>7.1 / 15</td>
+<td>40.2 / 50</td>
+<td><strong>0.72 / 1</strong></td>
+</tr>
+<tr>
+<td>32</td>
+<td>10.9 / 23</td>
+<td>104.2 / 114</td>
+<td><strong>0.48 / 1</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Reading the result:</p>
+<ul>
+<li><strong>QoS+WRRA latency is flat (&lt; 1 cycle, max 1) regardless of congestion</strong> — the urgent flow<br>
+jumps the queue at every contention level (the sub-cycle mean is just the occasional 1-cycle<br>
+re-arbitration when it arrives mid-burst).</li>
+<li><strong>RRA latency grows with N</strong> — fair round robin makes the urgent flow wait its turn among<br>
+<code>N</code> peers, so latency scales with the number of competitors.</li>
+<li><strong>WRRA is <em>worst</em></strong> — giving the urgent flow a low weight makes it wait behind every bulk<br>
+<em>burst</em> (<code>≈ (N−1)·weight</code>), reaching 104 cycles at N=32. This is the key insight:<br>
+<strong>weights alone cannot deliver latency; trying to use them for it actively hurts.</strong> Only<br>
+the QoS axis decouples latency from bandwidth.</li>
+<li>At <strong>low congestion (N = 4, 8) plain RR already matches QoS+WRRA</strong> — there is nothing to<br>
+fix when few flows compete. The benefit is a property of <em>congestion</em>, which is exactly why<br>
+the N-sweep (not a single point) is the right way to show it.</li>
+</ul>
+<p>The full swept curve (finer <code>N</code>, with jittered urgent arrivals so the periodic-stimulus<br>
+resonance of §6.4 does not jag the lines) — note the linear blow-up of WRRA to ~168 cycles<br>
+while QoS+WRRA hugs zero. <code>N = 5</code> is marked as the <strong>anchor</strong>: it is the same source count as<br>
+the cascade experiments (§4.2, §6.3), so the swept result cross-references them.</p>
+<p><img src="plots/fig1_latency_vs_congestion.png" alt="Urgent-flow latency (mean and max) vs. number of competing flows"></p>
+<p>The animation below makes the <em>mechanism</em> behind this curve visible: one urgent flow (top row,<br>
+<strong>URG</strong>) competes with 7 saturated bulk flows (<code>b1..b7</code>), arbitrated three ways in lock-step.<br>
+Under <strong>RRA</strong> the bulk grants march one beat at a time (a diagonal) and the urgent flow waits<br>
+about half a rotation; under <strong>WRRA</strong> each bulk flow holds the link for <code>BulkWeight = 4</code> beats<br>
+(fat bursts), so the urgent flow's wait (amber) stretches much longer; under <strong>QoS+WRRA</strong> the<br>
+urgent flow's high QoS <strong>preempts</strong> the in-flight burst and is served almost immediately (red).<br>
+It is a faithful behavioural model of the three arbiters at <code>N = 8</code> (we have no cycle-accurate<br>
+trace here), with mean urgent waits of ≈ 4.7 / 21.2 / 1.0 cycles respectively — the same<br>
+ordering as the swept curve above.</p>
+<p><img src="plots/fig1_requestor_animation.gif" alt="Animated requestors: one urgent flow vs. saturated bulk flows under RRA, WRRA, and QoS+WRRA"></p>
+<h3 id="63-qos-through-the-cascade--cc_qos_wrr_cascade_tb">6.3 QoS through the cascade — <code>cc_qos_wrr_cascade_tb</code> </h3>
+<p>The mixed-radix cascade from §4.2 rebuilt from <code>cc_qos_wrr_arbiter</code>, with <strong>per-flit QoS</strong><br>
+(each flit carries its QoS in the header, read at every hop). The farthest source <code>r0</code><br>
+injects sporadic flits; we measure their end-to-end latency:</p>
+<table>
+<thead>
+<tr>
+<th>Config</th>
+<th>r0 end-to-end latency (mean / max)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UrgentQos = 8</code> (prioritised)</td>
+<td><strong>0.27 / 1 cyc</strong></td>
+</tr>
+<tr>
+<td><code>UrgentQos = 0</code> (uniform baseline)</td>
+<td>4.0 / 4 cyc</td>
+</tr>
+</tbody>
+</table>
+<p>QoS shortcuts the latency-critical flow through every hop — even though <code>r0</code> is the<br>
+topologically disadvantaged source — while weights keep bulk bandwidth fair.</p>
+<h4 id="631-qos-bandwidth-share-through-the-cascade--cc_qos_wrr_cascade_share_tb">6.3.1 QoS <em>bandwidth share</em> through the cascade — <code>cc_qos_wrr_cascade_share_tb</code> </h4>
+<p>§6.3 measures <em>latency</em> through the cascade; this is the <em>bandwidth</em> counterpart, run on the<br>
+<strong>same 5-source structure</strong> so the QoS results are directly comparable to the topological study<br>
+of §4.2 (and to the flat two-tier test of §6.1, which isolates the same mechanism on a single<br>
+arbiter). All five sources are now <strong>saturated</strong>, with a <strong>3-high / 2-low</strong> QoS layout mapped<br>
+onto the cascade and a weighted pair in the high tier:</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>hops to dest</th>
+<th>QoS</th>
+<th>weight</th>
+<th>tier</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>r0</code></td>
+<td>3 (via A0)</td>
+<td>2</td>
+<td><strong>3</strong></td>
+<td>high (weighted)</td>
+</tr>
+<tr>
+<td><code>r1</code></td>
+<td>3 (via A0)</td>
+<td>2</td>
+<td>1</td>
+<td>high</td>
+</tr>
+<tr>
+<td><code>r2</code></td>
+<td>3 (via A0)</td>
+<td>2</td>
+<td>1</td>
+<td>high</td>
+</tr>
+<tr>
+<td><code>r3</code></td>
+<td>2 (via A1)</td>
+<td>0</td>
+<td>1</td>
+<td>low</td>
+</tr>
+<tr>
+<td><code>r4</code></td>
+<td>1 (via A2)</td>
+<td>0</td>
+<td>1</td>
+<td>low</td>
+</tr>
+</tbody>
+</table>
+<p>Each source's share is counted <strong>at the destination</strong> (by the flit's source id), after 1–3 hops<br>
+of re-arbitration. Three things fall out:</p>
+<ul>
+<li><strong>QoS priority survives the cascade.</strong> The high tier (<code>r0..r2</code>) dominates the destination<br>
+bandwidth even though those sources are the <em>farthest</em> — the exact opposite of fig2, where<br>
+unit weights starved <code>r0</code> to 1/12. QoS overrides the topological distance.</li>
+<li><strong>The weighted split is realised at the merge.</strong> The <code>r0 : r1 = 3 : 1</code> weighting is applied<br>
+where they actually compete (the A0 hop), so it shows up as a <code>3:1</code> split <em>within</em> the high<br>
+tier at the destination.</li>
+<li><strong>Aging keeps the low tier alive.</strong> <code>r3, r4</code> (QoS 0) never starve.</li>
+</ul>
+<p><img src="plots/fig8_qos_cascade_share.png" alt="QoS bandwidth share through the 5-source cascade"></p>
+<p>One honest nuance: with QoS tiers active, the <strong>topological-fairness through-weights</strong><br>
+(A1.through = 3, A2.through = 4) become <em>secondary</em> — QoS, not the port weights, now decides<br>
+the bulk of the bandwidth split. They still shape how the small low-tier (aging) share is<br>
+divided between <code>r3</code> and <code>r4</code>, but the headline split is set by QoS. (The numbers in fig8 are<br>
+produced by the <code>cc_qos_wrr_cascade_share_tb</code> run on the sim machine; rerun <code>simulate-wrra.sh</code><br>
+and regenerate to populate them.)</p>
+<h3 id="64-observed-limitation-intra-tier-fairness-under-periodic-preemption">6.4 Observed limitation: intra-tier fairness under <em>periodic</em> preemption </h3>
+<p>In §6.2's throughput (not latency) the bulk flows — though identical — do <strong>not</strong> get equal<br>
+shares at some <code>N</code> (e.g. N=16: a few get ~0.17, the rest ~0.009; N=4/32 are ~uniform).</p>
+<p>Cause: the sporadic urgent flow preempts on a fixed period and, each time it is served, the<br>
+round-robin pointer is rewound to roughly the same place. Only the ~<code>gap/weight</code> bulk inputs<br>
+the pointer reaches before the next preemption get served; aging only sprinkles a few grants<br>
+on the rest. Whether this <em>freezes</em> on the same victims (unfair) or <em>drifts</em> across them<br>
+(uniform) depends on whether the preemption period aliases with the rotation length — the<br>
+same effect as a strobe light appearing to freeze or slowly rotate a spinning wheel. It is<br>
+therefore an <strong>artifact of perfectly periodic stimulus</strong>; jittering the inter-arrival gap (as<br>
+real traffic does) breaks the resonance and evens the shares out. It does not affect the<br>
+latency result, the within-tier weighting (§6.1), or correctness (no starvation).</p>
+<p>This is confirmed empirically: the comparison testbench has a <code>GapJitter</code> knob that randomises<br>
+the urgent think-time. With it enabled the latency curves (fig1) smooth out <strong>and</strong> the bulk<br>
+shares become uniform — the same fix in both places, because both symptoms share the one<br>
+cause (periodic preemption resonating with the rotation).</p>
+<h3 id="65-the-aging-knob--quantified-tradeoff">6.5 The aging knob — quantified tradeoff </h3>
+<p><code>AgingInterval</code> is the single dial that trades <strong>low-tier protection</strong> against <strong>QoS<br>
+dominance</strong>. Sweeping it on the two-tier test gives a clean, designer-facing curve:</p>
+<p><img src="plots/fig6_aging_tuning_curve.png" alt="Aging tuning curve: low-tier share and max-wait vs. AgingInterval"></p>
+<p>Each time <code>AgingInterval</code> <strong>doubles</strong>, the low tier's bandwidth share roughly <strong>halves</strong> and<br>
+its worst-case wait roughly <strong>doubles</strong> (e.g. share <code>0.20 → 0.008</code>, max-wait <code>10 → 258</code> cycles<br>
+across intervals <code>2 → 128</code>). The figure splits this into two simple panels: low-tier<br>
+<strong>bandwidth share</strong> falls as the interval grows (left), while its <strong>worst-case wait</strong> rises<br>
+(right). So the value is read off whichever panel encodes the requirement — a bandwidth floor<br>
+(left) or a latency bound (right) — rather than being a fixed optimum. A practical<br>
+default is <code>16–32</code>: the high tier keeps ~94–97 % while the low tier holds a few percent with a<br>
+bounded few-tens-of-cycles wait.</p>
+<h3 id="66-three-qos-tiers--when-does-within-tier-weighting-hold">6.6 Three QoS tiers — when does within-tier weighting hold? </h3>
+<p>Extending to <strong>three</strong> QoS levels across 4 inputs surfaces a subtle but important rule. Two<br>
+scenarios were run (<code>cc_qos_wrr_3tier_tb</code>):</p>
+<p><strong>Weighted pair in the <em>mid</em> tier</strong> (<code>QoS {4,2,2,0}</code>, weights <code>{1,3,1,1}</code>): the QoS-2 pair<br>
+in1 (w3) and in2 (w1) get the <strong>same</strong> share — the 3:1 weighting is <strong>lost</strong>.</p>
+<p><img src="plots/fig7_qos_three_tiers.png" alt="Three QoS tiers, weighted pair in the mid tier (weights nullified)"></p>
+<p><strong>Weighted pair in the <em>native top</em> tier</strong> (<code>QoS {4,4,2,0}</code>, weights <code>{3,1,1,1}</code>): now the<br>
+QoS-4 pair in0 (w3) and in1 (w1) split exactly <strong>3:1</strong> (0.680 : 0.227).</p>
+<p><img src="plots/fig7b_qos_three_tiers_weighted_top.png" alt="Three QoS tiers, weighted pair in the native top tier (3:1 holds)"></p>
+<p>The reason is the aging mechanism: an input promoted into a higher tier <em>by aging</em> is served<br>
+<strong>one flit and then demoted</strong> (the grant resets its age, dropping its effective QoS), so its<br>
+burst — and hence its weight — never takes effect. The conclusion: <strong>within-tier weights apply<br>
+only in an input's <em>native</em> top tier</strong> (where it is always co-eligible), not when it is aged up<br>
+from below. This is the concrete, measured form of the aging-vs-weighting tension — two<br>
+mechanisms (round-robin weighting and aging) both deciding "who is served next" and only<br>
+composing cleanly within a single, stable tier.</p>
+<hr>
+<h2 id="7-engineering-issues-found-and-fixed">7. Engineering issues found and fixed </h2>
+<p>The cascade/comparison testbenches exercised regimes the unit tests did not, surfacing three<br>
+bugs — each fixed and re-verified:</p>
+<ol>
+<li><strong>First-flit burst truncation</strong> (in the original <code>floo_wrr_arbiter</code> prototype). The burst<br>
+counter lagged a cycle, so the first winner after every idle period got only one grant.<br>
+Fixed with <code>cnt_eff</code> making the weight live on the first flit (§3.4).</li>
+<li><strong>Mid-burst deadlock under QoS masking.</strong> When the QoS wrapper demoted the current burst<br>
+winner out of <code>eligible</code> mid-burst, the inner arbiter stayed locked on a now-ineligible<br>
+winner forever — starving the high-QoS flow. Fixed by abandoning the burst when the locked<br>
+winner stops requesting (<code>winner_gone</code>); under saturation it never triggers, so weighted<br>
+behaviour is unchanged.</li>
+<li><strong>Spurious grant on a masked winner.</strong> <code>gnt_o</code> was asserted from <code>gnt_i</code> alone, so a<br>
+winner masked out mid-cycle received a grant for a flit that never left (a dropped flit in<br>
+real use, skewed throughput counts here). Fixed by gating the grant on the actual transfer<br>
+(<code>gnt_o[winner] = req_o &amp; gnt_i</code>).</li>
+</ol>
+<hr>
+<h2 id="8-files">8. Files </h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/cc_wrr_arbiter.sv</code></td>
+<td>weighted round-robin arbiter (bandwidth)</td>
+</tr>
+<tr>
+<td><code>src/cc_qos_wrr_arbiter.sv</code></td>
+<td>QoS priority + aging + weighted RR</td>
+</tr>
+<tr>
+<td><code>test/cc_wrr_arbiter_tb.sv</code></td>
+<td>flat <code>wᵢ/Σwⱼ</code> throughput + weight-0 unit test</td>
+</tr>
+<tr>
+<td><code>test/cc_wrr_arbiter_cascade_tb.sv</code></td>
+<td>mixed-radix topological-unfairness cascade</td>
+</tr>
+<tr>
+<td><code>test/cc_qos_wrr_arbiter_tb.sv</code></td>
+<td>two-tier QoS+WRR (weighting + anti-starvation + aging sweep)</td>
+</tr>
+<tr>
+<td><code>test/cc_qos_wrr_3tier_tb.sv</code></td>
+<td>three-QoS-tier scenarios (fig7 / fig7b)</td>
+</tr>
+<tr>
+<td><code>test/cc_qos_wrr_cascade_tb.sv</code></td>
+<td>per-flit-QoS cascade end-to-end latency</td>
+</tr>
+<tr>
+<td><code>test/cc_qos_wrr_cascade_share_tb.sv</code></td>
+<td>QoS bandwidth share through the 5-source cascade</td>
+</tr>
+<tr>
+<td><code>test/cc_arbiter_compare_tb.sv</code></td>
+<td>RRA vs WRRA vs QoS+WRRA latency/throughput sweep</td>
+</tr>
+<tr>
+<td><code>test/simulate-wrra.sh</code></td>
+<td>runs the simulations + sweeps, writes <code>results.csv</code></td>
+</tr>
+<tr>
+<td><code>test/waves/*.wave.do</code></td>
+<td>GUI waveform setups</td>
+</tr>
+<tr>
+<td><code>doc/plots/plot_arbiters.py</code></td>
+<td>turns <code>results.csv</code> into the report figures</td>
+</tr>
+<tr>
+<td><code>doc/plots/fig*.png</code></td>
+<td>the evaluation figures (fig1–7b)</td>
+</tr>
+</tbody>
+</table>
+
+      </div>
+      
+      
+    
+    
+    
+    
+    
+    
+  
+    </body></html>

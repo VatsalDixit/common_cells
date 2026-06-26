@@ -7,10 +7,14 @@ Two data sources:
   * the swept results come from `results.csv`, which you produce on the sim machine:
 
       cd build/vsim
-      bash ../../test/simulate-wrra.sh        # runs all the sweeps, tee's to vsim.log
-      grep -o 'CSV,.*' vsim.log > results.csv  # extract the machine-readable lines
+      bash ../../test/simulate-wrra.sh        # runs all sweeps AND builds results.csv itself
+                                              # (it appends every run's CSV lines internally)
 
-  then bring `results.csv` next to this script and run:  python plot_arbiters.py
+  The script already leaves a COMPLETE build/vsim/results.csv. Do NOT re-grep vsim.log into it --
+  vsim.log is overwritten each run and holds only the LAST run, so `grep vsim.log > results.csv`
+  would clobber the accumulated file down to a single line.
+
+  Just copy build/vsim/results.csv next to this script and run:  python plot_arbiters.py
 
 Figures with swept data (fig1 finer, fig5 cloud, fig6 aging) appear only if results.csv is found.
 Outputs PNGs next to this file (doc/plots/).
