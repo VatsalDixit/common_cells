@@ -161,9 +161,10 @@ module cc_qos_wrr_cascade_share_tb #(
   initial begin : proc_check
     automatic longint unsigned cnt [5];
     automatic int     unsigned max_wait [5], last_cyc [5];
+    automatic bit              seen [5];      // skip the first grant's gap (warmup, not a real wait)
     automatic longint unsigned total, hi, lo;
     automatic int     unsigned id;
-    foreach (cnt[i]) begin cnt[i] = 0; max_wait[i] = 0; last_cyc[i] = 0; end
+    foreach (cnt[i]) begin cnt[i] = 0; max_wait[i] = 0; last_cyc[i] = 0; seen[i] = 1'b0; end
     total = 0;
 
     @(posedge rst_n);
@@ -175,8 +176,10 @@ module cc_qos_wrr_cascade_share_tb #(
         id = int'(dest_data[IdWidth-1:0]);
         if (id < 5) begin
           cnt[id]++; total++;
-          if ((cyc - last_cyc[id]) > max_wait[id]) max_wait[id] = cyc - last_cyc[id];
+          // only measure gaps between *consecutive* grants of a source (ignore the first).
+          if (seen[id] && (cyc - last_cyc[id]) > max_wait[id]) max_wait[id] = cyc - last_cyc[id];
           last_cyc[id] = cyc;
+          seen[id] = 1'b1;
         end
       end
     end

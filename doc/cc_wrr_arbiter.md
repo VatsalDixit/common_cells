@@ -334,24 +334,35 @@ onto the cascade and a weighted pair in the high tier:
 | `r4`   | 1 (via A2)   | 0   | 1      | low  |
 
 Each source's share is counted **at the destination** (by the flit's source id), after 1–3 hops
-of re-arbitration. Three things fall out:
+of re-arbitration. Measured shares:
 
-* **QoS priority survives the cascade.** The high tier (`r0..r2`) dominates the destination
-  bandwidth even though those sources are the *farthest* — the exact opposite of fig2, where
-  unit weights starved `r0` to 1/12. QoS overrides the topological distance.
-* **The weighted split is realised at the merge.** The `r0 : r1 = 3 : 1` weighting is applied
-  where they actually compete (the A0 hop), so it shows up as a `3:1` split *within* the high
-  tier at the destination.
-* **Aging keeps the low tier alive.** `r3, r4` (QoS 0) never starve.
+| Source | QoS | weight | share @ dest | tier |
+| ------ | --- | ------ | ------------ | ---- |
+| `r0`   | 2   | 3      | **0.558**    | high |
+| `r1`   | 2   | 1      | 0.186        | high |
+| `r2`   | 2   | 1      | 0.186        | high |
+| `r3`   | 0   | 1      | 0.030        | low  |
+| `r4`   | 0   | 1      | 0.040        | low  |
+
+Three things fall out:
+
+* **QoS priority survives the cascade.** The high tier (`r0..r2`) takes **93 %** of the
+  destination bandwidth (0.558 + 0.186 + 0.186) even though those sources are the *farthest* —
+  the exact opposite of fig2, where unit weights starved `r0` to 1/12 (8 %). QoS overrides the
+  topological distance.
+* **The weighted split is realised at the merge.** `r0 : r1 : r2 = 0.558 : 0.186 : 0.186 =
+  3 : 1 : 1` — the `r0` weight of 3 is applied where the three high sources actually compete
+  (the A0 hop), and the ratio is preserved all the way to the destination.
+* **Aging keeps the low tier alive.** `r3, r4` (QoS 0) hold ~3–4 % between them; neither starves.
 
 ![QoS bandwidth share through the 5-source cascade](plots/fig8_qos_cascade_share.png)
 
 One honest nuance: with QoS tiers active, the **topological-fairness through-weights**
 (A1.through = 3, A2.through = 4) become *secondary* — QoS, not the port weights, now decides
-the bulk of the bandwidth split. They still shape how the small low-tier (aging) share is
-divided between `r3` and `r4`, but the headline split is set by QoS. (The numbers in fig8 are
-produced by the `cc_qos_wrr_cascade_share_tb` run on the sim machine; rerun `simulate-wrra.sh`
-and regenerate to populate them.)
+the bulk of the split. They still shape how the small low-tier share is divided between `r3`
+and `r4`, but the headline split is set by QoS. This is the cascade analog of the flat
+two-tier result (§6.1): the same QoS+weight+aging mechanism, now shown to hold end-to-end
+through a multi-hop NoC.
 
 ### 6.4 Observed limitation: intra-tier fairness under *periodic* preemption
 

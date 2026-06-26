@@ -282,13 +282,13 @@ if qc:
     shares = [r["share"] for r in qc]
     # high tier (QoS>0) green, low tier (QoS0) orange
     colors = ["tab:green" if int(r["qos"]) > 0 else "tab:orange" for r in qc]
-    fig, ax = plt.subplots(figsize=(8.0, 4.6))
+    fig, ax = plt.subplots(figsize=(8.4, 4.8))
     bars = ax.bar(labels, shares, color=colors)
-    ax.set_ylim(0, max(shares) * 1.25 if shares else 1.0)
+    ax.set_ylim(0, max(shares) * 1.28 if shares else 1.0)
     ax.set_ylabel("end-to-end bandwidth share (at destination)")
     ax.set_title("QoS+WRRA through the 5-source cascade: priority survives 3 hops\n"
-                 "(high tier r0-r2 dominates; weighted split r0:r1=3:1 at the A0 merge; "
-                 "low tier kept alive by aging)")
+                 "high tier (r0-r2) dominates; within-tier r0:r1:r2 = 3:1:1; "
+                 "low tier alive via aging", fontsize=10.5)
     for b, s in zip(bars, shares):
         ax.text(b.get_x()+b.get_width()/2, s + max(shares)*0.02, f"{s:.3f}",
                 ha="center", fontsize=9)
